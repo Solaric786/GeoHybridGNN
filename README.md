@@ -1,48 +1,87 @@
-# GeoHybridGNN: GitHub-ready public release prep
+Replace it with this:
 
-This folder is a **public-release preparation package** for the GeoHybridGNN project used for porphyry copper prospectivity mapping in the Western Chagai Belt, Pakistan.
+````markdown
+# GeoHybridGNN
 
-It is designed to help convert a working local research project into a cleaner **GitHub repository** and, if desired, a **Zenodo-archived release**.
+Geology-informed deep learning workflow for porphyry copper prospectivity mapping in the Western Chagai Belt, Pakistan.
 
-## What is included here
+## Overview
 
-- `public_code_snapshot/` — the preprocessing and GEE scripts that were directly accessible in this workspace.
-- `docs/archive_manifest_from_rar_listing.txt` — a manifest of additional files detected inside the uploaded `02_Code.rar` archive.
-- `docs/repo_structure_proposal.md` — a recommended clean repository structure.
-- `docs/public_release_checklist.md` — a step-by-step checklist before pushing anything public.
-- `requirements-public.txt` — a conservative public environment file based on visible imports.
-- `CITATION.cff` and `.zenodo.json` — starter metadata files for citation and Zenodo archiving.
-- `CODE_AND_DATA_AVAILABILITY.md` — suggested wording for manuscript availability statements.
+This repository provides the public-facing code and documentation snapshot for the **GeoHybridGNN** project. The study focuses on integrating geospatial preprocessing and geology-informed machine learning for porphyry copper prospectivity analysis in the Western Chagai Belt.
+
+The current public version is a **clean release snapshot**, not yet a complete end-to-end reproduction package of the full local research workspace.
+
+## Current repository contents
+
+- `public_code_snapshot/` — publicly prepared code snapshot from the working project, including visible preprocessing and Google Earth Engine scripts.
+- `docs/` — supporting release notes and repository-planning documents.
+- `requirements-public.txt` — conservative public environment file based on visible imports.
+- `CITATION.cff` — citation metadata for the repository.
+- `.zenodo.json` — metadata for future Zenodo archiving.
+- `CODE_AND_DATA_AVAILABILITY.md` — suggested wording for manuscript code/data availability statements.
+
+## Repository structure
+
+```text
+GeoHybridGNN/
+├── docs/
+├── public_code_snapshot/
+├── .gitignore
+├── .zenodo.json
+├── CITATION.cff
+├── CODE_AND_DATA_AVAILABILITY.md
+├── README.md
+└── requirements-public.txt
+````
+
+## Scope of this public release
+
+This repository is intended to support:
+
+* public documentation of the project structure,
+* release of selected preprocessing and workflow scripts,
+* citation and archival of the public code snapshot,
+* future expansion into a more complete reproducibility package.
+
+At this stage, the repository should be understood as a **carefully prepared public release scaffold**.
 
 ## Important limitation
 
-The uploaded project archive was in **RAR** format. In this environment, the archive contents were readable as a **file list**, but the full files inside the archive could not be extracted automatically because no working RAR extraction binary was available.
+The original working project included materials that were not all directly extractable in this environment. As a result, this public repository currently reflects the files that were accessible and suitable for release preparation, rather than the full internal project tree.
 
-Accordingly, this package is a **careful best-effort public-release scaffold**, not a final one-click export of the entire project.
+Accordingly, this version should not be interpreted as the final complete research archive.
 
-## Recommended public repository name
+## What is not included
 
-`geohybridgn-chagai-porphyry-prospectivity`
+This public repository does **not** include:
 
-## Suggested first public release contents
+* raw proprietary or restricted data,
+* heavy intermediate rasters and large generated outputs,
+* local machine paths or private environment details,
+* sensitive or internal-only working notes,
+* unreleased full project artifacts that were not safely verified for publication.
 
-Public release should include:
-- preprocessing scripts
-- graph-building and model-training scripts after cleanup
-- README with workflow overview
-- environment file
-- figure-generation scripts that reproduce the manuscript maps
-- metadata files (`CITATION.cff`, `.zenodo.json`)
+## Reproducibility note
 
-Public release should **not** include:
-- raw proprietary data
-- intermediate rasters and heavy generated outputs
-- private local paths
-- personal emails or internal notes beyond the manuscript authorship metadata
-- accidental duplicates / version clutter (`v1`, `v2`, ..., `v10`) unless clearly archived in a legacy folder
+The repository currently contains a public code snapshot and release documentation. Additional workflow components, cleaned training scripts, and reproducibility materials may be added in later versions after final verification for public release.
 
-## Next best action
+## Related manuscript context
 
-1. Convert the RAR archive to ZIP locally and re-upload it, or upload the key `src/graph/` scripts directly.
-2. Use the structure proposed in `docs/repo_structure_proposal.md`.
-3. After the repo is pushed to GitHub, connect it to Zenodo and archive the first release.
+This repository supports the GeoHybridGNN study on geology-informed deep learning for porphyry copper prospectivity mapping in the Western Chagai Belt. The public code and metadata here are intended to accompany manuscript submission, review, and future archival release.
+
+## Citation
+
+Please use the repository citation metadata in `CITATION.cff`. A Zenodo-linked citation can be added after the first archived release.
+
+## Contact and updates
+
+Future cleaned releases may expand the repository with additional scripts, workflow clarification, and archival metadata.
+
+```
+
+Commit message:
+`Rewrite README for public-facing repository`
+
+Description:
+`Replace the release-prep draft README with a cleaner public-facing project overview and scope statement.`
+```
