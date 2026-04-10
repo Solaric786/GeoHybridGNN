@@ -7,6 +7,6 @@ pyproj
 matplotlib
 scikit-learn
 joblib
-GDAL
+gdal
 torch
 torch-geometric
