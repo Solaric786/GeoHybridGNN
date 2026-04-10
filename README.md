@@ -1,6 +1,3 @@
-Replace it with this:
-
-````markdown
 # GeoHybridGNN
 
 Geology-informed deep learning workflow for porphyry copper prospectivity mapping in the Western Chagai Belt, Pakistan.
@@ -77,11 +74,3 @@ Please use the repository citation metadata in `CITATION.cff`. A Zenodo-linked c
 
 Future cleaned releases may expand the repository with additional scripts, workflow clarification, and archival metadata.
 
-```
-
-Commit message:
-`Rewrite README for public-facing repository`
-
-Description:
-`Replace the release-prep draft README with a cleaner public-facing project overview and scope statement.`
-```
