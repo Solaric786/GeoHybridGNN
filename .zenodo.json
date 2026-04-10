@@ -1,0 +1,19 @@
+{
+  "title": "GeoHybridGNN",
+  "upload_type": "software",
+  "description": "Public release of the GeoHybridGNN workflow for geology-informed porphyry copper prospectivity mapping in the Western Chagai Belt.",
+  "creators": [
+    {
+      "name": "Bilal, Muhammad Atif",
+      "affiliation": "Jilin University"
+    }
+  ],
+  "keywords": [
+    "geology-informed deep learning",
+    "prospectivity mapping",
+    "porphyry copper",
+    "Western Chagai Belt",
+    "remote sensing",
+    "geospatial machine learning"
+  ]
+}
