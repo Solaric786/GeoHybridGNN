@@ -1,12 +1,1 @@
-numpy
-pandas
-geopandas
-rasterio
-shapely
-pyproj
-matplotlib
-scikit-learn
-joblib
-GDAL
-torch
-torch-geometric
+
