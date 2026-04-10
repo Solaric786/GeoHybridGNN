@@ -1,0 +1,128 @@
+/**** 0) STUDY AREA (Rectangle)
+ *  Study boundary: 26–32N, 60–68E
+ ****/
+var lonMin = 60;
+var latMin = 26;
+var lonMax = 68;
+var latMax = 32;
+
+// Rectangle is [xmin, ymin, xmax, ymax] = [lonMin, latMin, lonMax, latMax]
+var roi = ee.Geometry.Rectangle([lonMin, latMin, lonMax, latMax], null, false);
+
+Map.centerObject(roi, 6);
+Map.addLayer(roi, {color: 'red'}, 'ROI (rectangle)');
+
+/**** 1) DEM (Choose ONE)
+ *  Option A (preferred): Copernicus DEM GLO-30 (ImageCollection)
+ *  Option B: SRTM 30m (single Image)
+ ****/
+
+// --- Option A: Copernicus DEM GLO-30 ---
+// GEE catalog: ee.ImageCollection("COPERNICUS/DEM/GLO30") and band "DEM"
+var demCop = ee.ImageCollection('COPERNICUS/DEM/GLO30')
+  .select('DEM')
+  .mosaic()
+  .clip(roi);
+
+// --- Option B: SRTM 30m ---
+// GEE catalog: ee.Image("USGS/SRTMGL1_003") and band "elevation"
+// var demCop = ee.Image('USGS/SRTMGL1_003')
+//   .select('elevation')
+//   .clip(roi);
+
+// Visual check
+Map.addLayer(demCop, {min: 0, max: 3500}, 'DEM (clipped)');
+
+/**** 2) Terrain derivatives: slope + hillshade
+ *  Protocol hillshade: azimuth=315°, altitude=45°.
+ ****/
+var slope = ee.Terrain.slope(demCop).clip(roi);
+var hillshade = ee.Terrain.hillshade(demCop, 315, 45).clip(roi);
+
+Map.addLayer(slope, {min: 0, max: 60}, 'Slope (deg)');
+Map.addLayer(hillshade, {min: 0, max: 255}, 'Hillshade (315/45)');
+
+/**** 3) Export to Google Drive (GeoTIFF)
+ *  Keep EPSG:4326 for storage (as your protocol suggests).
+ *  Scale: 30 m.
+ ****/
+var exportFolder = 'GEE_Chagai_60-68E_26-32N';
+var exportScale = 30;          // meters
+var exportCRS = 'EPSG:4326';   // storage CRS
+
+Export.image.toDrive({
+  image: demCop,
+  description: 'dem_ref_COP_or_SRTM',
+  folder: exportFolder,
+  fileNamePrefix: 'dem_ref',
+  region: roi,
+  scale: exportScale,
+  crs: exportCRS,
+  maxPixels: 1e13
+});
+
+Export.image.toDrive({
+  image: slope,
+  description: 'slope_30m',
+  folder: exportFolder,
+  fileNamePrefix: 'slope',
+  region: roi,
+  scale: exportScale,
+  crs: exportCRS,
+  maxPixels: 1e13
+});
+
+Export.image.toDrive({
+  image: hillshade,
+  description: 'hillshade_315_45_30m',
+  folder: exportFolder,
+  fileNamePrefix: 'hillshade_315_45',
+  region: roi,
+  scale: exportScale,
+  crs: exportCRS,
+  maxPixels: 1e13
+});
+
+/**** 4) OPTIONAL: Sentinel-2 SR composite (for textures / GeoAI)
+ *  Dataset: COPERNICUS/S2_SR_HARMONIZED
+ *  Edit dates as you want.
+ ****/
+var s2Start = '2023-01-01';
+var s2End   = '2025-12-31';
+
+// Simple cloud/shadow mask using SCL (Scene Classification Layer)
+function maskS2SR(img) {
+  var scl = img.select('SCL');
+  // Mask out: 3=shadow, 8=cloud med prob, 9=cloud high prob, 10=thin cirrus, 11=snow
+  var mask = scl.neq(3).and(scl.neq(8)).and(scl.neq(9)).and(scl.neq(10)).and(scl.neq(11));
+  return img.updateMask(mask);
+}
+
+var s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(roi)
+  .filterDate(s2Start, s2End)
+  .filter(ee.Filter.lte('CLOUDY_PIXEL_PERCENTAGE', 20))
+  .map(maskS2SR);
+
+// Median composite (surface reflectance scaled by 10000)
+var s2Med = s2.median().clip(roi);
+
+// Example indices
+var ndvi = s2Med.normalizedDifference(['B8', 'B4']).rename('NDVI'); // NIR, Red
+var s2Stack = s2Med.select(['B2','B3','B4','B8','B11','B12']).addBands(ndvi);
+
+// Visual check
+Map.addLayer(s2Med.select(['B4','B3','B2']).divide(10000), {min: 0, max: 0.3}, 'S2 RGB (median)');
+Map.addLayer(ndvi, {min: -0.2, max: 0.8}, 'NDVI');
+
+// Export Sentinel-2 stack (bands + NDVI)
+Export.image.toDrive({
+  image: s2Stack,
+  description: 'sentinel2_SR_median_stack',
+  folder: exportFolder,
+  fileNamePrefix: 'sentinel2_SR_median_stack_' + s2Start + '_' + s2End,
+  region: roi,
+  scale: 10,          // Sentinel-2 native (10m for B2/B3/B4/B8)
+  crs: exportCRS,
+  maxPixels: 1e13
+});

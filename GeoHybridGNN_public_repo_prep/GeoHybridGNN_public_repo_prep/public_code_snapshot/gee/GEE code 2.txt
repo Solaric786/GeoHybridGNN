@@ -1,0 +1,101 @@
+/**** 0) STUDY AREA (Rectangle)
+ *  Study boundary: 26–32N, 60–68E
+ ****/
+var lonMin = 60, latMin = 26, lonMax = 68, latMax = 32;
+var roi = ee.Geometry.Rectangle([lonMin, latMin, lonMax, latMax], null, false);
+
+// Buffer (meters) to reduce edge artifacts in slope/hillshade near ROI border
+var bufferMeters = 10000; // 10 km
+var roiBuf = roi.buffer(bufferMeters);
+
+Map.centerObject(roi, 6);
+Map.addLayer(roi, {color: 'red'}, 'ROI (rectangle)');
+
+/**** 1) DEM (Choose ONE)
+ *  Option A (preferred): Copernicus DEM GLO-30
+ *  Option B: SRTM 30m
+ ****/
+
+// ---------- Option A: Copernicus DEM GLO-30 ----------
+var demIC = ee.ImageCollection('COPERNICUS/DEM/GLO30')
+  .select('DEM')
+  .filterBounds(roiBuf);
+
+// Mosaic + restore a stable default projection from a native tile
+var dem = demIC.mosaic();
+var nativeProj = demIC.first().select('DEM').projection();
+dem = dem.setDefaultProjection(nativeProj).rename('elevation');
+
+// Limit computation area to buffered ROI (NOT the final ROI)
+dem = dem.clip(roiBuf);
+
+// ---------- Option B: SRTM 30m (uncomment to use instead) ----------
+// var dem = ee.Image('USGS/SRTMGL1_003')
+//   .select('elevation')
+//   .rename('elevation')
+//   .clip(roiBuf);
+
+print('DEM projection:', dem.projection());
+
+// Visual check (clipped to buffer just for display)
+Map.addLayer(dem, {min: 0, max: 3500}, 'DEM (buffered)');
+
+/**** 2) Terrain derivatives
+ *  Slope: degrees (per EE docs)
+ *  Hillshade: azimuth=315°, elevation=45° (per EE docs)
+ ****/
+var slopeBuf = ee.Terrain.slope(dem);                 // degrees
+var hillshadeBuf = ee.Terrain.hillshade(dem, 315, 45); // 0–255
+
+// Clip FINAL outputs to ROI (not buffer)
+var demOut = dem.clip(roi);
+var slopeOut = slopeBuf.clip(roi);
+var hillshadeOut = hillshadeBuf.clip(roi);
+
+// Display
+Map.addLayer(slopeOut, {min: 0, max: 60}, 'Slope (deg)');
+Map.addLayer(hillshadeOut, {min: 0, max: 255}, 'Hillshade (315/45)');
+
+/**** 3) Export to Google Drive (GeoTIFF)
+ *  Storage CRS: EPSG:4326
+ *  Scale: 30 m
+ ****/
+var exportFolder = 'GEE_Chagai_60-68E_26-32N';
+var exportScale = 30;
+var exportCRS = 'EPSG:4326';
+
+Export.image.toDrive({
+  image: demOut.toFloat(),
+  description: 'dem_ref_30m',
+  folder: exportFolder,
+  fileNamePrefix: 'dem_ref_30m',
+  region: roi,
+  scale: exportScale,
+  crs: exportCRS,
+  maxPixels: 1e13,
+  fileFormat: 'GeoTIFF'
+});
+
+Export.image.toDrive({
+  image: slopeOut.toFloat(),
+  description: 'slope_deg_30m',
+  folder: exportFolder,
+  fileNamePrefix: 'slope_deg_30m',
+  region: roi,
+  scale: exportScale,
+  crs: exportCRS,
+  maxPixels: 1e13,
+  fileFormat: 'GeoTIFF'
+});
+
+Export.image.toDrive({
+  image: hillshadeOut.toUint8(),
+  description: 'hillshade_315_45_30m',
+  folder: exportFolder,
+  fileNamePrefix: 'hillshade_315_45_30m',
+  region: roi,
+  scale: exportScale,
+  crs: exportCRS,
+  maxPixels: 1e13,
+  fileFormat: 'GeoTIFF'
+});
