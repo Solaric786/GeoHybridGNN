@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Local data / heavy outputs / secrets
+data/
+outputs/
+results/
+artifacts/
+models/
+checkpoints/
+*.tif
+*.tiff
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.gpkg
+*.geojson
+*.csv
+*.xlsx
+*.xls
+*.rar
+*.zip
+*.7z
+*.npy
+*.npz
+*.pth
+*.pt
+*.ckpt
+.env
+*.env
