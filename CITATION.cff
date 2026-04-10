@@ -1,6 +1,10 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite the software release and the associated manuscript."
-title: "GeoHybridGNN for porphyry copper prospectivity mapping in the Western Chagai Belt"
+message: "If you use this repository, please cite the software release and the associated manuscript."
+title: "GeoHybridGNN"
+abstract: >-
+  GeoHybridGNN is a geology-informed workflow for porphyry copper prospectivity
+  mapping in the Western Chagai Belt, integrating geospatial preprocessing and
+  machine learning for mineral prospectivity analysis.
 authors:
   - family-names: "Bilal"
     given-names: "Muhammad Atif"
@@ -11,13 +15,10 @@ authors:
   - family-names: "Nubi"
     given-names: "Zubair"
 keywords:
-  - mineral prospectivity mapping
-  - remote sensing
-  - graph neural networks
-  - porphyry copper
-  - geospatial machine learning
+  - "mineral prospectivity mapping"
+  - "remote sensing"
+  - "graph neural networks"
+  - "porphyry copper"
+  - "geospatial machine learning"
 license: "NOASSERTION"
-repository-code: "https://github.com/REPLACE_WITH_ACCOUNT/geohybridgnn-chagai-porphyry-prospectivity"
-abstract: >-
-  GeoHybridGNN is a geology-informed hybrid workflow for porphyry copper prospectivity mapping
-  that combines raster-based remote-sensing and geochemical predictors with graph-based geological context.
+repository-code: "https://github.com/Solaric786/GeoHybridGNN"
