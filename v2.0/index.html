@@ -2138,6 +2138,19 @@
           button.setAttribute("aria-pressed", String(active));
         });
       }
+      function moveMap(action, delay = 70) {
+        const sceneAtRequest = current;
+        setTimeout(() => {
+          if (current !== sceneAtRequest || current === "globe") return;
+          map.stop();
+          map.invalidateSize({ pan:false, animate:false });
+          try {
+            action();
+          } catch (error) {
+            console.warn("Map movement skipped", error);
+          }
+        }, delay);
+      }
       function show(key) {
         current = key;
         const isGlobe = key === "globe";
@@ -2180,11 +2193,11 @@
           };
           if (key === "study") {
             add("boundary");
-            map.flyToBounds(bounds, { padding: [65, 65], duration: tour ? 3.8 : 2.2, easeLinearity:.16 });
+            moveMap(() => map.flyToBounds(bounds, { padding: [65, 65], duration: tour ? 3.8 : 2.2, easeLinearity:.16 }));
           }
           if (key === "evidence") {
             add("boundary");
-            map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.4 : 2.2, easeLinearity:.16 });
+            moveMap(() => map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.4 : 2.2, easeLinearity:.16 }));
             tourDelay(() => add("tectonics"), 650);
             tourDelay(() => add("geology"), 1250);
             tourDelay(() => add("faults"), 1950);
@@ -2193,18 +2206,18 @@
           if (key === "prediction") {
             add("prediction", "faults", "boundary", "copper");
             fadeOverlay(layers.prediction, .84, tour ? 2400 : 1200);
-            map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.2 : 2.2, easeLinearity:.16 });
+            moveMap(() => map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.2 : 2.2, easeLinearity:.16 }));
           }
           if (key === "uncertainty") {
             add("uncertainty", "faults", "boundary", "copper");
             fadeOverlay(layers.uncertainty, .87, tour ? 2400 : 1200);
-            map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.2 : 2.2, easeLinearity:.16 });
+            moveMap(() => map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.2 : 2.2, easeLinearity:.16 }));
           }
           if (key === "targets") {
             add("prediction", "faults", "boundary", "copper");
             fadeOverlay(layers.prediction, .76, 1300);
-            map.flyTo([29.1333, 62.0333], 8.7, { duration: tour ? 2.7 : 2.2, easeLinearity:.14 });
-            tourDelay(() => map.flyTo([29.27039, 61.56389], 9.1, { duration:2.4, easeLinearity:.14 }), 3300);
+            moveMap(() => map.flyTo([29.1333, 62.0333], 8.7, { duration: tour ? 2.7 : 2.2, easeLinearity:.14 }));
+            tourDelay(() => moveMap(() => map.flyTo([29.27039, 61.56389], 9.1, { duration:2.4, easeLinearity:.14 }), 0), 3300);
           }
           syncLayerControls();
         } else if (viewer) {
