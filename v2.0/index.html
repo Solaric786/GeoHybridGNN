@@ -1490,6 +1490,12 @@
         mobileRenderer.outputColorSpace = THREE.SRGBColorSpace;
         mobileRenderer.setClearColor(0x000000, 0);
         host.prepend(mobileRenderer.domElement);
+        if (window.ResizeObserver) {
+          new ResizeObserver(() => {
+            if (host.clientWidth > 10 && host.clientHeight > 10)
+              resizeMobileGlobe();
+          }).observe(host);
+        }
         const material = new THREE.MeshPhongMaterial({
           color:0x789aa1,
           shininess:8,
@@ -1921,7 +1927,10 @@
             "° E";
         legend.className = "legend " + key;
         if (useMobileSphere) {
-          if (!mobileMotion) faceMobilePakistan();
+          requestAnimationFrame(() => {
+            resizeMobileGlobe();
+            if (!mobileMotion) faceMobilePakistan();
+          });
         } else if (!isGlobe) {
           setTimeout(() => map.invalidateSize(), 40);
           Object.values(layers).forEach(
@@ -2052,7 +2061,10 @@
           document.querySelector("#mobile-globe").style.display = "block";
           document.querySelector("#globe-controls").style.display = "none";
           document.querySelector("#globe-hint").style.display = "block";
-          animateMobileGlobe(index);
+          requestAnimationFrame(() => {
+            resizeMobileGlobe();
+            animateMobileGlobe(index);
+          });
         }
         timers.push(setTimeout(() => tour && show(key), 3850));
       }
@@ -2126,8 +2138,10 @@
             e.latlng.lng.toFixed(3) +
             "° E";
       });
-      document.querySelector("#enter").onclick = () =>
+      document.querySelector("#enter").onclick = () => {
         document.querySelector("#welcome").classList.add("closed");
+        globalTransition(0, "globe");
+      };
       show("globe");
     </script>
   </body>
