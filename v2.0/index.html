@@ -1272,6 +1272,7 @@
       @keyframes mine-pulse { 0%,100%{stroke-width:2.5;filter:drop-shadow(0 0 0 rgba(199,89,57,0))} 50%{stroke-width:5;filter:drop-shadow(0 0 8px rgba(255,111,69,.9))} }
       #mobile-globe { display:none;position:absolute;z-index:5;inset:0;overflow:hidden;touch-action:none;background:radial-gradient(circle at 50% 42%,#d3dcda 0,#a9b6b8 58%,#879598 100%); }
       #mobile-globe canvas { position:absolute;inset:0;width:100%!important;height:100%!important;display:block;touch-action:none; }
+      #mobile-globe .mobile-canvas-globe { z-index:1; }
       .mobile-globe-label { position:absolute;z-index:2;left:50%;top:46%;transform:translate(20px,-32px);padding:7px 9px;border:1px solid rgba(236,244,242,.45);border-radius:7px;color:#f4f8f7;background:rgba(37,48,51,.9);font:700 8px monospace;letter-spacing:.07em;pointer-events:none;transition:opacity .35s ease,transform .35s ease;box-shadow:0 7px 20px rgba(12,24,27,.24); }
       #mobile-globe.is-swinging .mobile-globe-label { opacity:0;transform:translate(20px,-25px); }
       .mobile-globe-fallback { position:absolute;left:50%;top:46%;width:min(76vw,480px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#6f939b url('/GeoHybridGNN/v2.0/world-texture-3d.svg') center/cover;border:2px solid #dfe9e6;box-shadow:inset -45px -20px 65px rgba(16,37,43,.38),0 24px 70px rgba(15,31,36,.32); }
@@ -1366,6 +1367,7 @@
     </section>
     <script src="https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/Cesium.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       function applyResponsiveMode() {
@@ -1434,6 +1436,7 @@
         mobileEarth,
         mobileAtmosphere,
         mobileMotion,
+        mobileCanvasGlobe,
         mobileFitDistance = 9,
         mobileBaseRotation = 3.6;
       const pakistanRotation = 3.6;
@@ -1441,6 +1444,10 @@
         return t * t * (3 - 2 * t);
       }
       function resizeMobileGlobe() {
+        if (mobileCanvasGlobe) {
+          mobileCanvasGlobe.resize();
+          return;
+        }
         if (!mobileRenderer || !mobileCamera) return;
         const host = document.querySelector("#mobile-globe");
         const width = Math.max(host.clientWidth, 1);
@@ -1455,6 +1462,10 @@
         if (!mobileMotion) mobileCamera.position.z = mobileFitDistance;
       }
       function faceMobilePakistan() {
+        if (mobileCanvasGlobe) {
+          mobileCanvasGlobe.facePakistan();
+          return;
+        }
         if (!mobileEarth) return;
         mobileMotion = null;
         mobileBaseRotation = pakistanRotation;
@@ -1463,6 +1474,10 @@
         document.querySelector("#mobile-globe").classList.remove("is-swinging");
       }
       function animateMobileGlobe(index) {
+        if (mobileCanvasGlobe) {
+          mobileCanvasGlobe.animate(index);
+          return;
+        }
         if (!mobileEarth) return;
         const direction = index % 2 ? -1 : 1;
         mobileMotion = {
@@ -1473,13 +1488,194 @@
         };
         document.querySelector("#mobile-globe").classList.add("is-swinging");
       }
+      function initMobileCanvasGlobe(host) {
+        if (!window.d3) {
+          const fallback = document.createElement("div");
+          fallback.className = "mobile-globe-fallback";
+          host.prepend(fallback);
+          return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.className = "mobile-canvas-globe";
+        host.prepend(canvas);
+        const context = canvas.getContext("2d", { alpha:true });
+        const label = host.querySelector(".mobile-globe-label");
+        const projection = d3.geoOrthographic().clipAngle(90).precision(.35);
+        const path = d3.geoPath(projection, context);
+        const state = {
+          width:1,
+          height:1,
+          radius:1,
+          longitude:64,
+          latitude:29,
+          roll:0,
+          motion:null,
+          world:null,
+          dragging:false,
+          lastX:0,
+          lastY:0,
+          zoom:1,
+        };
+        function resizeCanvas() {
+          const width = Math.max(host.clientWidth, 1);
+          const height = Math.max(host.clientHeight, 1);
+          if (width < 10 || height < 10) return;
+          const ratio = Math.min(window.devicePixelRatio || 1, 1.75);
+          state.width = width;
+          state.height = height;
+          canvas.width = Math.round(width * ratio);
+          canvas.height = Math.round(height * ratio);
+          canvas.style.width = width + "px";
+          canvas.style.height = height + "px";
+          context.setTransform(ratio, 0, 0, ratio, 0, 0);
+          state.radius = Math.min(width * .39, height * .31) * state.zoom;
+          projection.translate([width / 2, height * .46]).scale(state.radius);
+        }
+        function drawCanvasGlobe() {
+          const width = state.width,
+            height = state.height,
+            center = projection.translate(),
+            radius = projection.scale();
+          context.clearRect(0, 0, width, height);
+          projection.rotate([-state.longitude, -state.latitude, state.roll]);
+          context.beginPath();
+          path({ type:"Sphere" });
+          context.fillStyle = "#6f929a";
+          context.fill();
+          if (state.world) {
+            context.beginPath();
+            path(state.world);
+            context.fillStyle = "#c4cfcc";
+            context.fill();
+            context.strokeStyle = "#304846";
+            context.lineWidth = Math.max(.65, radius / 460);
+            context.stroke();
+          }
+          const pakistanVisible = d3.geoDistance([state.longitude, state.latitude], [64.2, 29.2]) < Math.PI / 2;
+          if (pakistanVisible) {
+            const point = projection([64.2, 29.2]);
+            context.beginPath();
+            context.arc(point[0], point[1], Math.max(4, radius * .018), 0, Math.PI * 2);
+            context.fillStyle = "#248875";
+            context.fill();
+            context.lineWidth = 2.5;
+            context.strokeStyle = "#f3f7f6";
+            context.stroke();
+            label.style.left = point[0] + "px";
+            label.style.top = point[1] + "px";
+          }
+          context.save();
+          context.beginPath();
+          context.arc(center[0], center[1], radius, 0, Math.PI * 2);
+          context.clip();
+          const shade = context.createRadialGradient(
+            center[0] - radius * .42,
+            center[1] - radius * .48,
+            radius * .04,
+            center[0] + radius * .20,
+            center[1] + radius * .22,
+            radius * 1.18,
+          );
+          shade.addColorStop(0, "rgba(255,255,255,.30)");
+          shade.addColorStop(.42, "rgba(255,255,255,0)");
+          shade.addColorStop(.76, "rgba(18,40,45,.13)");
+          shade.addColorStop(1, "rgba(10,27,32,.48)");
+          context.fillStyle = shade;
+          context.fillRect(center[0] - radius, center[1] - radius, radius * 2, radius * 2);
+          context.restore();
+          context.beginPath();
+          context.arc(center[0], center[1], radius, 0, Math.PI * 2);
+          context.lineWidth = 2;
+          context.strokeStyle = "rgba(237,246,243,.88)";
+          context.stroke();
+        }
+        function facePakistanCanvas() {
+          state.motion = null;
+          state.longitude = 64;
+          state.latitude = 29;
+          state.roll = 0;
+          host.classList.remove("is-swinging");
+        }
+        function animateCanvasGlobe(index) {
+          const direction = index % 2 ? -1 : 1;
+          state.motion = {
+            started:performance.now(),
+            startLongitude:state.longitude,
+            startLatitude:state.latitude,
+            awayLongitude:64 + direction * (145 + index * 7),
+            awayLatitude:index % 3 === 0 ? -12 : 18,
+          };
+          host.classList.add("is-swinging");
+        }
+        fetch(root + "data/world-boundaries.geojson")
+          .then((response) => response.json())
+          .then((world) => state.world = world)
+          .catch(() => {});
+        host.addEventListener("pointerdown", (event) => {
+          state.dragging = true;
+          state.motion = null;
+          state.lastX = event.clientX;
+          state.lastY = event.clientY;
+          host.classList.remove("is-swinging");
+          host.setPointerCapture?.(event.pointerId);
+        });
+        host.addEventListener("pointermove", (event) => {
+          if (!state.dragging) return;
+          state.longitude -= (event.clientX - state.lastX) * .32;
+          state.latitude = Math.max(-68, Math.min(68, state.latitude + (event.clientY - state.lastY) * .24));
+          state.lastX = event.clientX;
+          state.lastY = event.clientY;
+        });
+        const endDrag = () => state.dragging = false;
+        host.addEventListener("pointerup", endDrag);
+        host.addEventListener("pointercancel", endDrag);
+        host.addEventListener("wheel", (event) => {
+          event.preventDefault();
+          state.zoom = Math.max(.78, Math.min(1.28, state.zoom - event.deltaY * .0007));
+          resizeCanvas();
+        }, { passive:false });
+        mobileCanvasGlobe = {
+          resize:resizeCanvas,
+          facePakistan:facePakistanCanvas,
+          animate:animateCanvasGlobe,
+        };
+        if (window.ResizeObserver)
+          new ResizeObserver(resizeCanvas).observe(host);
+        resizeCanvas();
+        let lastFrame = 0;
+        const renderCanvasGlobe = (now) => {
+          requestAnimationFrame(renderCanvasGlobe);
+          if (now - lastFrame < 28 || host.clientWidth < 10) return;
+          lastFrame = now;
+          if (state.motion) {
+            const elapsed = (now - state.motion.started) / 3800;
+            if (elapsed < .42) {
+              const t = smoothStep(elapsed / .42);
+              state.longitude = d3.interpolateNumber(state.motion.startLongitude, state.motion.awayLongitude)(t);
+              state.latitude = d3.interpolateNumber(29, state.motion.awayLatitude)(t);
+            } else if (elapsed < .58) {
+              state.longitude = state.motion.awayLongitude;
+              state.latitude = state.motion.awayLatitude;
+            } else if (elapsed < 1) {
+              const t = smoothStep((elapsed - .58) / .42);
+              state.longitude = d3.interpolateNumber(state.motion.awayLongitude, 64)(t);
+              state.latitude = d3.interpolateNumber(state.motion.awayLatitude, 29)(t);
+            } else {
+              facePakistanCanvas();
+            }
+            state.roll = Math.sin(Math.min(elapsed, 1) * Math.PI) * 8;
+          } else if (!state.dragging) {
+            state.longitude = 64 + Math.sin(now * .00022) * 2.8;
+          }
+          drawCanvasGlobe();
+        };
+        requestAnimationFrame(renderCanvasGlobe);
+      }
       function initMobile3DGlobe() {
         if (!mobileGlobe) return;
         const host = document.querySelector("#mobile-globe");
         if (!window.THREE) {
-          const fallback = document.createElement("div");
-          fallback.className = "mobile-globe-fallback";
-          host.prepend(fallback);
+          initMobileCanvasGlobe(host);
           return;
         }
         try {
@@ -1613,9 +1809,10 @@
         requestAnimationFrame(renderMobileGlobe);
         } catch (error) {
           mobileRenderer?.domElement?.remove();
-          const fallback = document.createElement("div");
-          fallback.className = "mobile-globe-fallback";
-          host.prepend(fallback);
+          mobileRenderer = null;
+          mobileCamera = null;
+          mobileEarth = null;
+          initMobileCanvasGlobe(host);
         }
       }
       initMobile3DGlobe();
