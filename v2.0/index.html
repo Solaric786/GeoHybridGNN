@@ -1268,6 +1268,8 @@
       @media (prefers-reduced-motion:reduce) {
         *,*::before,*::after { animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important; }
       }
+      body.tour-running .mine-point { animation:mine-pulse 1.7s ease-in-out infinite;transform-box:fill-box;transform-origin:center; }
+      @keyframes mine-pulse { 0%,100%{stroke-width:2.5;filter:drop-shadow(0 0 0 rgba(199,89,57,0))} 50%{stroke-width:5;filter:drop-shadow(0 0 8px rgba(255,111,69,.9))} }
     </style>
   </head>
   <body>
@@ -1642,6 +1644,7 @@
           weight: 2.5,
           fillColor: "#b84c3b",
           fillOpacity: 1,
+          className: "mine-point",
         })
           .bindTooltip(
             "<strong>" + s[2] + "</strong><small>" + s[3] + "</small>",
@@ -1688,6 +1691,21 @@
           )
           .join("") +
         '<button type="button" class="tour" id="tour" aria-label="Play the guided research tour"><i>▶</i><span><strong>Guided Tour</strong><small>Auto-play all six scenes</small></span></button></div>';
+      function fadeOverlay(layer, target, duration = 1800) {
+        if (!layer?.setOpacity) return;
+        const start = performance.now();
+        layer.setOpacity(.03);
+        const frame = (now) => {
+          const p = Math.min((now - start) / duration, 1);
+          layer.setOpacity(.03 + (target - .03) * (1 - Math.pow(1 - p, 3)));
+          if (p < 1 && map.hasLayer(layer)) requestAnimationFrame(frame);
+        };
+        requestAnimationFrame(frame);
+      }
+      function tourDelay(fn, delay) {
+        if (tour) timers.push(setTimeout(() => tour && fn(), delay));
+        else fn();
+      }
       function show(key) {
         current = key;
         const isGlobe = key === "globe";
@@ -1715,7 +1733,8 @@
           setTimeout(() => map.invalidateSize(), 40);
           Object.values(layers).forEach((l) => map.hasLayer(l) && map.removeLayer(l));
           if (layers.world) layers.world.addTo(map);
-          map.setView([28, 64], 2, { animate:false });
+          map.setView([18, 35], 2, { animate:false });
+          map.flyTo([28, 64], 3, { duration: tour ? 4.6 : 2.4, easeLinearity:.18 });
         } else if (!isGlobe) {
           setTimeout(() => map.invalidateSize(), 40);
           Object.values(layers).forEach(
@@ -1725,29 +1744,39 @@
             n.forEach((x) => layers[x] && layers[x].addTo(map));
           if (key === "study") {
             add("boundary");
-            map.flyToBounds(bounds, { padding: [65, 65], duration: 2.2 });
+            map.flyToBounds(bounds, { padding: [65, 65], duration: tour ? 3.8 : 2.2, easeLinearity:.16 });
           }
           if (key === "evidence") {
-            add("geology", "tectonics", "faults", "boundary", "copper");
-            map.flyToBounds(bounds, { padding: [45, 45], duration: 2.2 });
+            add("boundary");
+            map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.4 : 2.2, easeLinearity:.16 });
+            tourDelay(() => add("tectonics"), 650);
+            tourDelay(() => add("geology"), 1250);
+            tourDelay(() => add("faults"), 1950);
+            tourDelay(() => add("copper"), 2650);
           }
           if (key === "prediction") {
             add("prediction", "faults", "boundary", "copper");
-            map.flyToBounds(bounds, { padding: [45, 45], duration: 2.2 });
+            fadeOverlay(layers.prediction, .84, tour ? 2400 : 1200);
+            map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.2 : 2.2, easeLinearity:.16 });
           }
           if (key === "uncertainty") {
             add("uncertainty", "faults", "boundary", "copper");
-            map.flyToBounds(bounds, { padding: [45, 45], duration: 2.2 });
+            fadeOverlay(layers.uncertainty, .87, tour ? 2400 : 1200);
+            map.flyToBounds(bounds, { padding: [45, 45], duration: tour ? 3.2 : 2.2, easeLinearity:.16 });
           }
           if (key === "targets") {
             add("prediction", "faults", "boundary", "copper");
-            map.flyTo([29.18, 61.82], 8, { duration: 2.2 });
+            fadeOverlay(layers.prediction, .76, 1300);
+            map.flyTo([29.1333, 62.0333], 8.7, { duration: tour ? 2.7 : 2.2, easeLinearity:.14 });
+            tourDelay(() => map.flyTo([29.27039, 61.56389], 9.1, { duration:2.4, easeLinearity:.14 }), 3300);
           }
         } else if (viewer) {
           spin = true;
           viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(55, 24, 11200000),
-            duration: 2.2,
+            destination: Cesium.Cartesian3.fromDegrees(59, 27, tour ? 7200000 : 10000000),
+            orientation:{heading:Cesium.Math.toRadians(8),pitch:Cesium.Math.toRadians(-82),roll:0},
+            duration: tour ? 5.2 : 2.2,
+            easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
           });
         }
         const i = scenes.findIndex((s) => s[0] === key),
@@ -1839,6 +1868,7 @@
       );
       function stop() {
         tour = false;
+        document.body.classList.remove("tour-running");
         timers.forEach(clearTimeout);
         timers = [];
         const b = document.querySelector("#tour");
@@ -1853,6 +1883,7 @@
         if (tour) return stop();
         document.querySelector("#welcome").classList.add("closed");
         tour = true;
+        document.body.classList.add("tour-running");
         document.querySelector("#tour-timeline").classList.add("active");
         const b = document.querySelector("#tour");
         b.classList.add("active");
