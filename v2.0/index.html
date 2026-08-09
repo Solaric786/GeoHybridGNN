@@ -1369,7 +1369,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       function applyResponsiveMode() {
-        const mobile = window.innerWidth <= 820 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+        const mobile = new URLSearchParams(location.search).get("preview") === "mobile" || window.innerWidth <= 820 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
         document.body.classList.toggle("mobile-ui", mobile);
         document.documentElement.style.setProperty("--app-h", window.innerHeight + "px");
       }
