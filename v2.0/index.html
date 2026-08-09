@@ -1270,11 +1270,23 @@
       }
       body.tour-running .mine-point { animation:mine-pulse 1.7s ease-in-out infinite;transform-box:fill-box;transform-origin:center; }
       @keyframes mine-pulse { 0%,100%{stroke-width:2.5;filter:drop-shadow(0 0 0 rgba(199,89,57,0))} 50%{stroke-width:5;filter:drop-shadow(0 0 8px rgba(255,111,69,.9))} }
+      #mobile-globe { display:none;position:absolute;z-index:5;inset:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#d5dddb 0,#aab7b9 58%,#89979a 100%); }
+      .mobile-sphere { position:absolute;left:50%;top:46%;width:min(82vw,520px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;background-color:#6f9eaa;background-image:url('/GeoHybridGNN/v2.0/world-texture.svg');background-repeat:repeat-x;background-size:auto 100%;background-position:62% center;border:2px solid rgba(226,241,237,.9);box-shadow:inset -55px -20px 75px rgba(20,41,48,.42),inset 30px 12px 45px rgba(255,255,255,.35),0 28px 75px rgba(15,31,36,.4); }
+      .mobile-sphere:after { content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 35% 27%,rgba(255,255,255,.25),transparent 34%,rgba(10,30,36,.12) 68%,rgba(5,17,22,.42) 100%);pointer-events:none; }
+      .mobile-sphere.swing { animation:sphere-swing 3.7s cubic-bezier(.45,.05,.22,1) both; }
+      @keyframes sphere-swing { 0%{background-position:62% center;transform:translate(-50%,-50%) rotate(-1deg) scale(1)} 38%{background-position:8% center;transform:translate(-50%,-50%) rotate(4deg) scale(.92)} 58%{background-position:8% center;transform:translate(-50%,-50%) rotate(4deg) scale(.92)} 100%{background-position:62% center;transform:translate(-50%,-50%) rotate(0) scale(1.06)} }
+      .mobile-sphere-label { position:absolute;z-index:2;left:50%;top:46%;transform:translate(22px,-34px);padding:6px 8px;border-radius:7px;color:#eef5f3;background:rgba(37,48,51,.88);font:700 7px monospace;letter-spacing:.07em;pointer-events:none; }
+      .mobile-sphere.swing + .mobile-sphere-label { animation:label-return 3.7s ease both; }
+      @keyframes label-return { 0%,82%{opacity:0;transform:translate(22px,-28px)} 100%{opacity:1;transform:translate(22px,-34px)} }
     </style>
   </head>
   <body>
     <div id="globe"></div>
     <div id="map2d"></div>
+    <div id="mobile-globe" aria-label="Animated global view">
+      <div class="mobile-sphere" id="mobile-sphere"></div>
+      <div class="mobile-sphere-label">PAKISTAN · WESTERN CHAGAI</div>
+    </div>
     <div class="globe-hint" id="globe-hint">DRAG TO ROTATE · PINCH OR SCROLL TO ZOOM · TAP PAKISTAN</div>
     <div class="globe-controls" id="globe-controls" aria-label="3D globe controls">
       <button type="button" id="globe-in" aria-label="Zoom in">+</button>
@@ -1710,10 +1722,12 @@
         current = key;
         const isGlobe = key === "globe";
         const useCesium = isGlobe && !!viewer;
+        const useMobileSphere = isGlobe && mobileGlobe;
         document.querySelector("#globe").style.display = useCesium
           ? "block"
           : "none";
-        document.querySelector("#map2d").style.display = useCesium
+        document.querySelector("#mobile-globe").style.display = useMobileSphere ? "block" : "none";
+        document.querySelector("#map2d").style.display = useCesium || useMobileSphere
           ? "none"
           : "block";
         document.querySelector("#globe-controls").style.display = useCesium ? "flex" : "none";
@@ -1729,12 +1743,9 @@
             map.getCenter().lng.toFixed(3) +
             "° E";
         legend.className = "legend " + key;
-        if (isGlobe && !viewer) {
-          setTimeout(() => map.invalidateSize(), 40);
-          Object.values(layers).forEach((l) => map.hasLayer(l) && map.removeLayer(l));
-          if (layers.world) layers.world.addTo(map);
-          map.setView([18, 35], 2, { animate:false });
-          map.flyTo([28, 64], 3, { duration: tour ? 4.6 : 2.4, easeLinearity:.18 });
+        if (useMobileSphere) {
+          const sphere = document.querySelector("#mobile-sphere");
+          sphere.classList.remove("swing");
         } else if (!isGlobe) {
           setTimeout(() => map.invalidateSize(), 40);
           Object.values(layers).forEach(
@@ -1840,51 +1851,42 @@
         const starts = [
           [18, -35], [50, -20], [42, 22], [18, 105], [-18, 82], [46, 112],
         ];
-        document.querySelector("#mode").textContent =
-          "GLOBAL TRANSITION · " + scenes[index][2].toUpperCase();
-        const flash = document.querySelector("#scene-flash");
-        flash.innerHTML =
-          "<b>NEXT STAGE " + String(index + 1).padStart(2, "0") +
-          "</b><strong>From global to local</strong><small>Approaching " +
-          scenes[index][3] + "</small>";
-        flash.classList.remove("play");
-        void flash.offsetWidth;
-        flash.classList.add("play");
         if (viewer) {
           document.querySelector("#globe").style.display = "block";
+          document.querySelector("#mobile-globe").style.display = "none";
           document.querySelector("#map2d").style.display = "none";
           document.querySelector("#globe-controls").style.display = "flex";
           document.querySelector("#globe-hint").style.display = "block";
           spin = false;
-          viewer.camera.setView({
+          viewer.camera.flyTo({
             destination: Cesium.Cartesian3.fromDegrees(starts[index][1], starts[index][0], 11800000),
             orientation: { heading:Cesium.Math.toRadians(index * 18),pitch:-Cesium.Math.PI_OVER_TWO,roll:0 },
-          });
-          viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(61.5, 28.5, 6900000),
-            orientation: { heading:Cesium.Math.toRadians(index * 6),pitch:Cesium.Math.toRadians(-80),roll:0 },
-            duration: 2.35,
+            duration: 1.65,
             easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+            complete: () => viewer.camera.flyTo({
+              destination: Cesium.Cartesian3.fromDegrees(61.5, 28.5, 6900000),
+              orientation: { heading:Cesium.Math.toRadians(index * 6),pitch:Cesium.Math.toRadians(-80),roll:0 },
+              duration: 1.95,
+              easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+            }),
           });
         } else {
           document.querySelector("#globe").style.display = "none";
-          document.querySelector("#map2d").style.display = "block";
+          document.querySelector("#map2d").style.display = "none";
+          document.querySelector("#mobile-globe").style.display = "block";
           document.querySelector("#globe-controls").style.display = "none";
           document.querySelector("#globe-hint").style.display = "block";
-          Object.values(layers).forEach((layer) => map.hasLayer(layer) && map.removeLayer(layer));
-          if (layers.world) layers.world.addTo(map);
-          map.invalidateSize();
-          map.setView(starts[index], 2, { animate:false });
-          requestAnimationFrame(() =>
-            map.flyTo([28.5, 64], 3, { duration:2.25,easeLinearity:.12 }),
-          );
+          const sphere = document.querySelector("#mobile-sphere");
+          sphere.classList.remove("swing");
+          void sphere.offsetWidth;
+          sphere.classList.add("swing");
         }
-        timers.push(setTimeout(() => tour && show(key), 2450));
+        timers.push(setTimeout(() => tour && show(key), 3850));
       }
       function scheduleTour(from) {
         timers.forEach(clearTimeout);
         timers = [];
-        const duration = 7600;
+        const duration = 8600;
         const range = document.querySelector("#tour-range");
         const timeline = document.querySelector("#tour-timeline");
         const started = performance.now();
@@ -1934,8 +1936,8 @@
         b.classList.add("active");
         b.innerHTML =
           "<i>Ⅱ</i><span><strong>Pause Video</strong><small>Animated presentation playing</small></span>";
-        show("globe");
         scheduleTour(0);
+        globalTransition(0, "globe");
       };
       document.querySelector("#tour-range").oninput = (e) => {
         const i = Math.round(Number(e.target.value));
