@@ -1416,6 +1416,13 @@
       ];
       let viewer,
         spin = true;
+      const mobileGlobe = document.body.classList.contains("mobile-ui");
+      if (mobileGlobe) {
+        scenes[0][2] = "Global Map";
+        scenes[0][3] = "International setting";
+        scenes[0][4] = "Explore country boundaries and locate Pakistan within the global metallogenic context.";
+      }
+      if (!mobileGlobe) {
       try {
         Cesium.buildModuleUrl.setBaseUrl(
           "https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/",
@@ -1510,6 +1517,7 @@
       } catch (e) {
         document.querySelector("#fallback").style.display = "grid";
       }
+      }
       const globeHome = () => viewer && viewer.camera.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(55, 24, 11200000),
         orientation: { heading:0,pitch:-Cesium.Math.PI_OVER_TWO,roll:0 },
@@ -1578,11 +1586,18 @@
         try {
           const r = await fetch(root + "data/" + file);
           layers[name] = L.geoJSON(await r.json(), options);
+          if (name === "world" && mobileGlobe)
+            setTimeout(() => current === "globe" && layers.world.addTo(map), 0);
         } catch (e) {
           console.warn(name, e);
         }
       }
       Promise.all([
+        geo("world", "world-boundaries.geojson", {
+          style: { color: "#60767a", weight: 1, opacity: .9, fillColor: "#d9e1df", fillOpacity: .08 },
+          onEachFeature: (f, layer) =>
+            layer.bindTooltip(f.properties?.ADMIN || "Country", { sticky:true, direction:"top" }),
+        }),
         geo("faults", "faults.geojson", {
           style: { color: "#d55d4a", weight: 1.4, opacity: 0.95 },
           onEachFeature: featurePopup("Faults"),
@@ -1676,14 +1691,18 @@
       function show(key) {
         current = key;
         const isGlobe = key === "globe";
-        document.querySelector("#globe").style.display = isGlobe
+        const useCesium = isGlobe && !!viewer;
+        document.querySelector("#globe").style.display = useCesium
           ? "block"
           : "none";
-        document.querySelector("#map2d").style.display = isGlobe
+        document.querySelector("#map2d").style.display = useCesium
           ? "none"
           : "block";
-        document.querySelector("#globe-controls").style.display = isGlobe ? "flex" : "none";
+        document.querySelector("#globe-controls").style.display = useCesium ? "flex" : "none";
         document.querySelector("#globe-hint").style.display = isGlobe ? "block" : "none";
+        document.querySelector("#globe-hint").textContent = useCesium
+          ? "DRAG TO ROTATE · PINCH OR SCROLL TO ZOOM · TAP PAKISTAN"
+          : "DRAG TO PAN · PINCH TO ZOOM · TAP A COUNTRY";
         document.querySelector("#coords").textContent = isGlobe
           ? "LAT / LON · Drag the 3D Earth"
           : "LAT " +
@@ -1692,7 +1711,12 @@
             map.getCenter().lng.toFixed(3) +
             "° E";
         legend.className = "legend " + key;
-        if (!isGlobe) {
+        if (isGlobe && !viewer) {
+          setTimeout(() => map.invalidateSize(), 40);
+          Object.values(layers).forEach((l) => map.hasLayer(l) && map.removeLayer(l));
+          if (layers.world) layers.world.addTo(map);
+          map.setView([28, 64], 2, { animate:false });
+        } else if (!isGlobe) {
           setTimeout(() => map.invalidateSize(), 40);
           Object.values(layers).forEach(
             (l) => map.hasLayer(l) && map.removeLayer(l),
@@ -1732,7 +1756,7 @@
         document.querySelector("#mode").textContent = tour
           ? "VIDEO TOUR · SCENE " + (i + 1) + " / " + scenes.length
           : isGlobe
-            ? "3D globe view"
+            ? viewer ? "3D globe view" : "Interactive world map"
             : "2D scientific map";
         document.querySelector("#tour-range").value = String(i);
         timeline.style.setProperty(
@@ -1823,7 +1847,7 @@
           "<i>▶</i><span><strong>Guided Tour</strong><small>Auto-play all six scenes</small></span>";
         document.querySelector("#tour-timeline").classList.remove("active");
         document.querySelector("#mode").textContent =
-          current === "globe" ? "3D globe view" : "2D scientific map";
+          current === "globe" ? (viewer ? "3D globe view" : "Interactive world map") : "2D scientific map";
       }
       document.querySelector("#tour").onclick = () => {
         if (tour) return stop();
