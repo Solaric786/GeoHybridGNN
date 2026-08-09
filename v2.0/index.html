@@ -1836,10 +1836,55 @@
           flash.classList.add("play");
         }
       }
+      function globalTransition(index, key) {
+        const starts = [
+          [18, -35], [50, -20], [42, 22], [18, 105], [-18, 82], [46, 112],
+        ];
+        document.querySelector("#mode").textContent =
+          "GLOBAL TRANSITION · " + scenes[index][2].toUpperCase();
+        const flash = document.querySelector("#scene-flash");
+        flash.innerHTML =
+          "<b>NEXT STAGE " + String(index + 1).padStart(2, "0") +
+          "</b><strong>From global to local</strong><small>Approaching " +
+          scenes[index][3] + "</small>";
+        flash.classList.remove("play");
+        void flash.offsetWidth;
+        flash.classList.add("play");
+        if (viewer) {
+          document.querySelector("#globe").style.display = "block";
+          document.querySelector("#map2d").style.display = "none";
+          document.querySelector("#globe-controls").style.display = "flex";
+          document.querySelector("#globe-hint").style.display = "block";
+          spin = false;
+          viewer.camera.setView({
+            destination: Cesium.Cartesian3.fromDegrees(starts[index][1], starts[index][0], 11800000),
+            orientation: { heading:Cesium.Math.toRadians(index * 18),pitch:-Cesium.Math.PI_OVER_TWO,roll:0 },
+          });
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(61.5, 28.5, 6900000),
+            orientation: { heading:Cesium.Math.toRadians(index * 6),pitch:Cesium.Math.toRadians(-80),roll:0 },
+            duration: 2.35,
+            easingFunction: Cesium.EasingFunction.CUBIC_IN_OUT,
+          });
+        } else {
+          document.querySelector("#globe").style.display = "none";
+          document.querySelector("#map2d").style.display = "block";
+          document.querySelector("#globe-controls").style.display = "none";
+          document.querySelector("#globe-hint").style.display = "block";
+          Object.values(layers).forEach((layer) => map.hasLayer(layer) && map.removeLayer(layer));
+          if (layers.world) layers.world.addTo(map);
+          map.invalidateSize();
+          map.setView(starts[index], 2, { animate:false });
+          requestAnimationFrame(() =>
+            map.flyTo([28.5, 64], 3, { duration:2.25,easeLinearity:.12 }),
+          );
+        }
+        timers.push(setTimeout(() => tour && show(key), 2450));
+      }
       function scheduleTour(from) {
         timers.forEach(clearTimeout);
         timers = [];
-        const duration = 6500;
+        const duration = 7600;
         const range = document.querySelector("#tour-range");
         const timeline = document.querySelector("#tour-timeline");
         const started = performance.now();
@@ -1853,7 +1898,7 @@
         }, 40));
         for (let i = from + 1; i < scenes.length; i++)
           timers.push(
-            setTimeout(() => show(scenes[i][0]), (i - from) * duration),
+            setTimeout(() => globalTransition(i, scenes[i][0]), (i - from) * duration),
           );
         timers.push(
           setTimeout(() => stop(), (scenes.length - from) * duration + 1200),
