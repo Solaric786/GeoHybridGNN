@@ -1276,6 +1276,20 @@
       .mobile-globe-label { position:absolute;z-index:2;left:50%;top:46%;transform:translate(20px,-32px);padding:7px 9px;border:1px solid rgba(236,244,242,.45);border-radius:7px;color:#f4f8f7;background:rgba(37,48,51,.9);font:700 8px monospace;letter-spacing:.07em;pointer-events:none;transition:opacity .35s ease,transform .35s ease;box-shadow:0 7px 20px rgba(12,24,27,.24); }
       #mobile-globe.is-swinging .mobile-globe-label { opacity:0;transform:translate(20px,-25px); }
       .mobile-globe-fallback { position:absolute;left:50%;top:46%;width:min(76vw,480px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#6f939b url('/GeoHybridGNN/v2.0/world-texture-3d.svg') center/cover;border:2px solid #dfe9e6;box-shadow:inset -45px -20px 65px rgba(16,37,43,.38),0 24px 70px rgba(15,31,36,.32); }
+      .layer-controls { position:absolute;z-index:735;left:50%;top:84px;transform:translateX(-50%);display:none;align-items:center;gap:6px;padding:7px;border:1px solid #596668;border-radius:14px;background:rgba(43,49,51,.96);box-shadow:0 15px 45px rgba(8,14,16,.28); }
+      .layer-controls:before { content:"MAP LAYERS";padding:0 8px 0 5px;color:#91a6a2;font:700 7px monospace;letter-spacing:.13em;white-space:nowrap; }
+      .layer-controls button { display:flex;align-items:center;gap:7px;min-height:36px;padding:8px 11px;border:1px solid #5b696b;border-radius:9px;color:#dce6e3;background:#374043;font:700 9px Inter,Segoe UI,sans-serif;white-space:nowrap;cursor:pointer;transition:.2s ease; }
+      .layer-controls button:hover { color:#fff;border-color:#74c9b5;background:#3c514e;transform:translateY(-1px); }
+      .layer-controls button.active { color:#f5faf8;border-color:#65c6af;background:#285f55;box-shadow:inset 3px 0 #82dbc6,0 5px 16px rgba(5,16,17,.24); }
+      .layer-controls i { display:block;width:11px;height:11px;border-radius:3px;background:var(--layer-color,#9db3ae);box-shadow:0 0 0 1px rgba(255,255,255,.35); }
+      .layer-controls button[data-layer="faults"] i { width:13px;height:2px;border-radius:2px;transform:rotate(-24deg); }
+      .layer-controls button[data-layer="copper"] i { border-radius:50%; }
+      .layer-controls button[data-layer="boundary"] i { background:transparent;border:2px solid var(--layer-color);box-shadow:none; }
+      body.tour-running .layer-controls { display:none!important; }
+      body.mobile-ui .layer-controls { left:7px;right:7px;top:56px;transform:none;max-width:none;gap:5px;padding:5px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none; }
+      body.mobile-ui .layer-controls::-webkit-scrollbar { display:none; }
+      body.mobile-ui .layer-controls:before { display:none; }
+      body.mobile-ui .layer-controls button { flex:0 0 auto;min-height:32px;padding:7px 9px;font-size:8px; }
     </style>
   </head>
   <body>
@@ -1311,6 +1325,13 @@
     </aside>
     <div class="coords" id="coords">LAT / LON · Interactive 3D Earth</div>
     <div class="mode-badge"><i></i><span id="mode">3D globe view</span></div>
+    <div class="layer-controls" id="layer-controls" aria-label="Scientific map layer controls">
+      <button type="button" data-layer="faults" style="--layer-color:#d55d4a" aria-pressed="false"><i></i>Faults</button>
+      <button type="button" data-layer="copper" style="--layer-color:#b63d2d" aria-pressed="false"><i></i>Data points</button>
+      <button type="button" data-layer="tectonics" style="--layer-color:#9b6848" aria-pressed="false"><i></i>Tectonic units</button>
+      <button type="button" data-layer="geology" style="--layer-color:#c9bda8" aria-pressed="false"><i></i>Lithology</button>
+      <button type="button" data-layer="boundary" style="--layer-color:#dce5e3" aria-pressed="false"><i></i>Country boundary</button>
+    </div>
     <section class="tour-timeline" id="tour-timeline">
       <div class="timeline-head">
         <strong>GeoHybridGNN animated research presentation</strong
@@ -1502,6 +1523,7 @@
         const label = host.querySelector(".mobile-globe-label");
         const projection = d3.geoOrthographic().clipAngle(90).precision(.35);
         const path = d3.geoPath(projection, context);
+        const graticule = d3.geoGraticule10();
         const state = {
           width:1,
           height:1,
@@ -1542,6 +1564,11 @@
           path({ type:"Sphere" });
           context.fillStyle = "#6f929a";
           context.fill();
+          context.beginPath();
+          path(graticule);
+          context.strokeStyle = "rgba(231,240,237,.22)";
+          context.lineWidth = .55;
+          context.stroke();
           if (state.world) {
             context.beginPath();
             path(state.world);
@@ -1674,6 +1701,10 @@
       function initMobile3DGlobe() {
         if (!mobileGlobe) return;
         const host = document.querySelector("#mobile-globe");
+        if (window.d3) {
+          initMobileCanvasGlobe(host);
+          return;
+        }
         if (!window.THREE) {
           initMobileCanvasGlobe(host);
           return;
@@ -2063,7 +2094,8 @@
         timers = [];
       const rail = document.querySelector("#rail"),
         story = document.querySelector("#story"),
-        legend = document.querySelector("#legend");
+        legend = document.querySelector("#legend"),
+        layerControls = document.querySelector("#layer-controls");
       rail.innerHTML +=
         '<div id="buttons">' +
         scenes
@@ -2098,6 +2130,14 @@
         if (tour) timers.push(setTimeout(() => tour && fn(), delay));
         else fn();
       }
+      function syncLayerControls() {
+        layerControls.querySelectorAll("[data-layer]").forEach((button) => {
+          const layer = layers[button.dataset.layer];
+          const active = !!layer && map.hasLayer(layer);
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", String(active));
+        });
+      }
       function show(key) {
         current = key;
         const isGlobe = key === "globe";
@@ -2112,6 +2152,7 @@
           : "block";
         document.querySelector("#globe-controls").style.display = useCesium ? "flex" : "none";
         document.querySelector("#globe-hint").style.display = isGlobe ? "block" : "none";
+        layerControls.style.display = isGlobe ? "none" : "flex";
         document.querySelector("#globe-hint").textContent = useCesium
           ? "DRAG TO ROTATE · PINCH OR SCROLL TO ZOOM · TAP PAKISTAN"
           : "DRAG TO ROTATE · PINCH TO ZOOM · COUNTRY BOUNDARIES";
@@ -2133,8 +2174,10 @@
           Object.values(layers).forEach(
             (l) => map.hasLayer(l) && map.removeLayer(l),
           );
-          const add = (...n) =>
+          const add = (...n) => {
             n.forEach((x) => layers[x] && layers[x].addTo(map));
+            syncLayerControls();
+          };
           if (key === "study") {
             add("boundary");
             map.flyToBounds(bounds, { padding: [65, 65], duration: tour ? 3.8 : 2.2, easeLinearity:.16 });
@@ -2163,6 +2206,7 @@
             map.flyTo([29.1333, 62.0333], 8.7, { duration: tour ? 2.7 : 2.2, easeLinearity:.14 });
             tourDelay(() => map.flyTo([29.27039, 61.56389], 9.1, { duration:2.4, easeLinearity:.14 }), 3300);
           }
+          syncLayerControls();
         } else if (viewer) {
           spin = true;
           viewer.camera.flyTo({
@@ -2229,11 +2273,21 @@
           flash.classList.add("play");
         }
       }
+      layerControls.querySelectorAll("[data-layer]").forEach((button) => {
+        button.onclick = () => {
+          const layer = layers[button.dataset.layer];
+          if (!layer) return;
+          if (map.hasLayer(layer)) map.removeLayer(layer);
+          else layer.addTo(map);
+          syncLayerControls();
+        };
+      });
       function globalTransition(index, key) {
         const starts = [
           [18, -35], [50, -20], [42, 22], [18, 105], [-18, 82], [46, 112],
         ];
         if (viewer) {
+          layerControls.style.display = "none";
           document.querySelector("#globe").style.display = "block";
           document.querySelector("#mobile-globe").style.display = "none";
           document.querySelector("#map2d").style.display = "none";
@@ -2253,6 +2307,7 @@
             }),
           });
         } else {
+          layerControls.style.display = "none";
           document.querySelector("#globe").style.display = "none";
           document.querySelector("#map2d").style.display = "none";
           document.querySelector("#mobile-globe").style.display = "block";
