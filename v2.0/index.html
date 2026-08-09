@@ -1113,8 +1113,8 @@
       /* V3 cinematic light-atlas redesign */
       :root { --atlas:#f4f6f5; --teal:#176f63; --copper:#c66b3d; --navy:#20363d; }
       body { background:linear-gradient(135deg,#dce5e3,#f3f5f4); color:var(--navy); }
-      #globe canvas { filter:saturate(.94) brightness(1.08) contrast(.96)!important; }
-      #globe,#globe .cesium-widget,#globe canvas { background:#cbd9dc!important; }
+      #globe canvas { filter:saturate(.9) brightness(.96) contrast(1.08)!important; }
+      #globe,#globe .cesium-widget,#globe canvas { background:#a9b6b9!important; }
       .brand { left:28px;top:24px;padding:12px 16px;border-radius:16px;background:rgba(251,252,252,.95);box-shadow:0 16px 45px rgba(30,55,58,.16); }
       .mark { width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#1d806f,#145d54);box-shadow:0 8px 20px rgba(23,111,99,.25); }
       .brand strong { font-size:16px;letter-spacing:-.02em; }
@@ -1248,10 +1248,22 @@
       body.mobile-ui .welcome h1 { font-size:34px!important; }
       body.mobile-ui .welcome-subtitle { font-size:11px!important; }
       body.mobile-ui .identity img { width:min(260px,100%)!important;max-height:68px!important; }
+      .globe-hint { position:absolute;z-index:710;left:50%;top:118px;transform:translateX(-50%);padding:9px 13px;border:1px solid #5d6a6c;border-radius:999px;color:#e8efed;background:rgba(43,49,51,.92);font:700 8px monospace;letter-spacing:.06em;white-space:nowrap;box-shadow:0 10px 30px rgba(7,13,15,.24); }
+      .globe-controls { position:absolute;z-index:720;right:27px;top:82px;display:flex;flex-direction:column;gap:5px; }
+      .globe-controls button { width:39px;height:39px;border:1px solid #657274;border-radius:10px;color:#eef4f2;background:rgba(43,49,51,.95);font:700 18px Inter,sans-serif;box-shadow:0 8px 24px rgba(8,13,15,.25);cursor:pointer; }
+      .globe-controls button:hover { color:#182b2e;background:#80d7c0; }
       @supports (padding: max(0px)) {
         body.mobile-ui .rail { bottom:max(7px,env(safe-area-inset-bottom))!important;left:max(7px,env(safe-area-inset-left))!important;right:max(7px,env(safe-area-inset-right))!important; }
         body.mobile-ui .brand { top:max(8px,env(safe-area-inset-top))!important; }
       }
+      body.mobile-ui .globe-hint { top:62px;padding:7px 10px;font-size:6px; }
+      body.mobile-ui .globe-controls { right:8px;top:58px;gap:4px; }
+      body.mobile-ui .globe-controls button { width:34px;height:34px;border-radius:9px;font-size:16px; }
+      body.mobile-ui .story { max-height:116px!important;padding:11px 13px!important; }
+      body.mobile-ui .story p { margin-bottom:4px!important; }
+      body.mobile-ui .story h1 { margin-bottom:4px!important;font-size:22px!important; }
+      body.mobile-ui .story span { white-space:nowrap!important;text-overflow:ellipsis!important;display:block!important;overflow:hidden!important; }
+      body.mobile-ui .progress { margin-top:7px!important; }
       button:focus-visible,input:focus-visible,a:focus-visible { outline:3px solid #81dec6;outline-offset:3px; }
       @media (prefers-reduced-motion:reduce) {
         *,*::before,*::after { animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important; }
@@ -1261,6 +1273,12 @@
   <body>
     <div id="globe"></div>
     <div id="map2d"></div>
+    <div class="globe-hint" id="globe-hint">DRAG TO ROTATE · PINCH OR SCROLL TO ZOOM · TAP PAKISTAN</div>
+    <div class="globe-controls" id="globe-controls" aria-label="3D globe controls">
+      <button type="button" id="globe-in" aria-label="Zoom in">+</button>
+      <button type="button" id="globe-out" aria-label="Zoom out">−</button>
+      <button type="button" id="globe-home" aria-label="Reset globe view">⌂</button>
+    </div>
     <div class="fallback" id="fallback">
       3D globe unavailable — switch to Study area
     </div>
@@ -1402,14 +1420,12 @@
         Cesium.buildModuleUrl.setBaseUrl(
           "https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/",
         );
-        const earthAtlas = new Cesium.UrlTemplateImageryProvider({
-          url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-          credit: "© OpenStreetMap contributors",
-          maximumLevel: 19,
-        });
         viewer = new Cesium.Viewer("globe", {
-          baseLayer: new Cesium.ImageryLayer(earthAtlas),
+          baseLayer: false,
           terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+          skyBox: false,
+          sun: false,
+          moon: false,
           animation: false,
           timeline: false,
           baseLayerPicker: false,
@@ -1422,14 +1438,23 @@
           selectionIndicator: false,
           shouldAnimate: true,
         });
+        Cesium.TileMapServiceImageryProvider.fromUrl(
+          Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
+        ).then((provider) => viewer.imageryLayers.addImageryProvider(provider));
         viewer.scene.globe.enableLighting = false;
         viewer.scene.globe.baseColor =
-          Cesium.Color.fromCssColorString("#cfd6d4");
+          Cesium.Color.fromCssColorString("#789fa8");
         viewer.scene.skyAtmosphere.show = true;
         viewer.scene.backgroundColor =
-          Cesium.Color.fromCssColorString("#d9dedd");
+          Cesium.Color.fromCssColorString("#a9b6b9");
+        Cesium.GeoJsonDataSource.load(root + "data/world-boundaries.geojson", {
+          stroke: Cesium.Color.fromCssColorString("#e8f0ee").withAlpha(.85),
+          fill: Cesium.Color.TRANSPARENT,
+          strokeWidth: 1.25,
+          clampToGround: true,
+        }).then((source) => viewer.dataSources.add(source));
         viewer.camera.setView({
-          destination: Cesium.Cartesian3.fromDegrees(55, 24, 12500000),
+          destination: Cesium.Cartesian3.fromDegrees(55, 24, 11200000),
           orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
         });
         viewer.entities.add({
@@ -1453,6 +1478,19 @@
             ),
           },
         });
+        [
+          [66,33,"AFGHANISTAN"],[53,32,"IRAN"],[79,23,"INDIA"],
+          [103,36,"CHINA"],[68,48,"KAZAKHSTAN"],[45,24,"SAUDI ARABIA"],
+        ].forEach(([lon,lat,name]) => viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(lon,lat,90000),
+          label: {
+            text:name,font:"600 11px Inter, sans-serif",
+            fillColor:Cesium.Color.fromCssColorString("#f3f7f6"),
+            outlineColor:Cesium.Color.fromCssColorString("#26383c"),
+            outlineWidth:3,style:Cesium.LabelStyle.FILL_AND_OUTLINE,
+            distanceDisplayCondition:new Cesium.DistanceDisplayCondition(2500000,11000000),
+          },
+        }));
         viewer.clock.onTick.addEventListener(() => {
           if (spin && current === "globe")
             viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.00018);
@@ -1472,6 +1510,18 @@
       } catch (e) {
         document.querySelector("#fallback").style.display = "grid";
       }
+      const globeHome = () => viewer && viewer.camera.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(55, 24, 11200000),
+        orientation: { heading:0,pitch:-Cesium.Math.PI_OVER_TWO,roll:0 },
+        duration: 1.6,
+      });
+      document.querySelector("#globe-in").onclick = () => {
+        if (viewer) viewer.camera.zoomIn(viewer.camera.positionCartographic.height * .28);
+      };
+      document.querySelector("#globe-out").onclick = () => {
+        if (viewer) viewer.camera.zoomOut(viewer.camera.positionCartographic.height * .28);
+      };
+      document.querySelector("#globe-home").onclick = globeHome;
       const map = L.map("map2d", {
         zoomControl: false,
         minZoom: 2,
@@ -1632,6 +1682,8 @@
         document.querySelector("#map2d").style.display = isGlobe
           ? "none"
           : "block";
+        document.querySelector("#globe-controls").style.display = isGlobe ? "flex" : "none";
+        document.querySelector("#globe-hint").style.display = isGlobe ? "block" : "none";
         document.querySelector("#coords").textContent = isGlobe
           ? "LAT / LON · Drag the 3D Earth"
           : "LAT " +
@@ -1670,7 +1722,7 @@
         } else if (viewer) {
           spin = true;
           viewer.camera.flyTo({
-            destination: Cesium.Cartesian3.fromDegrees(55, 24, 12500000),
+            destination: Cesium.Cartesian3.fromDegrees(55, 24, 11200000),
             duration: 2.2,
           });
         }
