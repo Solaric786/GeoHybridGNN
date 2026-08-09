@@ -2,7 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <title>GeoHybridGNN 3D Research Atlas</title>
     <link
       rel="stylesheet"
@@ -1219,6 +1220,27 @@
         .story { left:94px;right:auto;bottom:10px;width:min(420px,calc(100vw - 190px));max-height:135px; }
         .story h1 { font-size:24px; }.tour-timeline { left:94px;right:10px;top:10px; }
       }
+      /* JS-enforced mobile mode for browsers with unreliable viewport queries */
+      body.mobile-ui { width:100vw!important;height:var(--app-h,100dvh)!important;overflow:hidden!important; }
+      body.mobile-ui .brand { left:8px!important;top:8px!important;padding:6px 9px!important; }
+      body.mobile-ui .brand small,body.mobile-ui .coords,body.mobile-ui .legend { display:none!important; }
+      body.mobile-ui .mode-badge { right:8px!important;top:8px!important;padding:9px!important;font-size:7px!important; }
+      body.mobile-ui .rail { left:7px!important;right:7px!important;bottom:7px!important;top:auto!important;width:auto!important;height:74px!important;padding:6px!important;overflow-x:auto!important;overflow-y:hidden!important; }
+      body.mobile-ui .rail #buttons { display:flex!important;flex-flow:row nowrap!important;width:max-content!important;height:62px!important;gap:5px!important; }
+      body.mobile-ui .rail button { flex:0 0 72px!important;width:72px!important;height:60px!important;min-height:60px!important;margin:0!important;padding:4px!important;display:flex!important;flex-direction:column!important;gap:2px!important; }
+      body.mobile-ui .rail button>i { width:24px!important;height:24px!important;margin:auto!important; }
+      body.mobile-ui .rail button strong { font-size:9px!important; }
+      body.mobile-ui .rail button small,body.mobile-ui .rail button.active:after { display:none!important; }
+      body.mobile-ui .story { left:8px!important;right:8px!important;bottom:90px!important;width:auto!important;max-height:148px!important;padding:13px 15px!important;overflow:hidden!important; }
+      body.mobile-ui .story h1 { font-size:25px!important; }
+      body.mobile-ui .story span { font-size:10px!important;line-height:1.35!important;-webkit-line-clamp:2!important; }
+      body.mobile-ui .tour-timeline { left:8px!important;right:8px!important;top:54px!important;width:auto!important;transform:none!important;padding:10px 11px!important; }
+      body.mobile-ui .scene-flash { left:14px!important;right:14px!important;top:31%!important;width:auto!important; }
+      body.mobile-ui .welcome { padding:10px!important;overflow:auto!important;align-items:flex-start!important; }
+      body.mobile-ui .welcome-card { width:100%!important;margin:auto!important;padding:22px 15px 18px!important; }
+      body.mobile-ui .welcome h1 { font-size:34px!important; }
+      body.mobile-ui .welcome-subtitle { font-size:11px!important; }
+      body.mobile-ui .identity img { width:min(260px,100%)!important;max-height:68px!important; }
     </style>
   </head>
   <body>
@@ -1302,6 +1324,14 @@
     <script src="https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/Cesium.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
+      function applyResponsiveMode() {
+        const mobile = window.innerWidth <= 820 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+        document.body.classList.toggle("mobile-ui", mobile);
+        document.documentElement.style.setProperty("--app-h", window.innerHeight + "px");
+      }
+      applyResponsiveMode();
+      window.addEventListener("resize", applyResponsiveMode, { passive:true });
+      window.addEventListener("orientationchange", () => setTimeout(applyResponsiveMode, 150), { passive:true });
       const root = "/GeoHybridGNN/",
         bounds = [
           [25.984817, 59.999735],
