@@ -1,0 +1,1807 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <title>GeoHybridGNN v2.0 | Interactive Research Atlas</title>
+    <meta name="description" content="Interactive 3D scientific atlas for GeoHybridGNN porphyry copper prospectivity mapping in the Western Chagai Belt." />
+    <meta name="theme-color" content="#2b3133" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="GeoHybridGNN v2.0 — Interactive Research Atlas" />
+    <meta property="og:description" content="Explore geology, copper occurrences, ensemble prospectivity, uncertainty and key mine targets through an interactive 3D and 2D scientific atlas." />
+    <meta property="og:url" content="https://solaric786.github.io/GeoHybridGNN/v2.0/" />
+    <link rel="canonical" href="https://solaric786.github.io/GeoHybridGNN/v2.0/" />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/Widgets/widgets.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <style>
+      :root {
+        --mint: #76dfc0;
+        --gold: #e7a85e;
+        --ink: #eef6f4;
+        --panel: rgba(7, 18, 20, 0.91);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body,
+      #globe,
+      #map2d {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        overflow: hidden;
+        background: #050b0e;
+        color: var(--ink);
+        font-family:
+          Inter,
+          Segoe UI,
+          Arial,
+          sans-serif;
+      }
+      #globe,
+      #map2d {
+        position: absolute;
+        inset: 0;
+      }
+      #map2d {
+        display: none;
+        background: #111c1f;
+      }
+      .shade {
+        position: absolute;
+        z-index: 400;
+        inset: 0;
+        pointer-events: none;
+        background:
+          linear-gradient(
+            90deg,
+            rgba(3, 9, 11, 0.88),
+            transparent 37%,
+            transparent 75%,
+            rgba(3, 9, 11, 0.24)
+          ),
+          linear-gradient(0deg, rgba(3, 9, 11, 0.5), transparent 40%);
+      }
+      .brand {
+        position: absolute;
+        z-index: 700;
+        left: 25px;
+        top: 23px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .mark {
+        width: 40px;
+        height: 40px;
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(118, 223, 192, 0.7);
+        border-radius: 12px;
+        color: var(--mint);
+        background: #081719d9;
+        font: 600 15px monospace;
+        box-shadow: 0 0 30px #55cda51b;
+      }
+      .brand div {
+        display: flex;
+        flex-direction: column;
+      }
+      .brand strong {
+        font-size: 15px;
+      }
+      .brand small {
+        margin-top: 4px;
+        color: #80938f;
+        font: 8px monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .rail {
+        position: absolute;
+        z-index: 700;
+        left: 22px;
+        top: 92px;
+        width: 196px;
+        padding: 11px;
+        border: 1px solid #d8efea20;
+        border-radius: 16px;
+        background: rgba(5, 15, 17, 0.82);
+        box-shadow: 0 18px 55px #0006;
+        backdrop-filter: blur(15px);
+      }
+      .rail-title {
+        padding: 4px 8px 11px;
+        color: #78908b;
+        font: 8px monospace;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+      .rail button {
+        position: relative;
+        width: 100%;
+        min-height: 52px;
+        margin: 3px 0;
+        padding: 7px 10px;
+        display: grid;
+        grid-template-columns: 31px 1fr;
+        align-items: center;
+        gap: 9px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        color: #aabbb8;
+        background: transparent;
+        text-align: left;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .rail button:hover {
+        color: #eef7f5;
+        background: #ffffff0b;
+      }
+      .rail button.active {
+        color: #eef9f6;
+        border-color: #76dfc04a;
+        background: linear-gradient(90deg, #76dfc022, #ffffff08);
+        box-shadow: inset 2px 0 var(--mint);
+      }
+      .rail button > i {
+        width: 30px;
+        height: 30px;
+        display: grid;
+        place-items: center;
+        border: 1px solid #d9ebe725;
+        border-radius: 8px;
+        color: #87a09b;
+        background: #ffffff08;
+        font: normal 14px monospace;
+      }
+      .rail button.active > i {
+        color: #071411;
+        border-color: var(--mint);
+        background: var(--mint);
+      }
+      .rail button span {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .rail button strong {
+        font-size: 10px;
+        letter-spacing: 0.015em;
+      }
+      .rail button small {
+        color: #6f8581;
+        font: 7px monospace;
+      }
+      .rail button.active small {
+        color: #91aaa4;
+      }
+      .rail .tour {
+        margin-top: 9px;
+        border-color: #e7a85e46;
+        color: #ffd49d;
+        background: #e7a85e0c;
+      }
+      .rail .tour.active {
+        box-shadow: inset 2px 0 var(--gold);
+      }
+      .rail .tour.active > i {
+        border-color: var(--gold);
+        background: var(--gold);
+      }
+      .story {
+        position: absolute;
+        z-index: 700;
+        left: 244px;
+        bottom: 38px;
+        width: min(520px, calc(100vw - 290px));
+        padding: 25px 28px;
+        border: 1px solid #d8efea1d;
+        border-left: 3px solid var(--mint);
+        border-radius: 0 14px 14px 0;
+        background: linear-gradient(
+          90deg,
+          rgba(5, 15, 17, 0.94),
+          rgba(5, 15, 17, 0.55)
+        );
+        box-shadow: 0 20px 60px #0005;
+        backdrop-filter: blur(12px);
+        animation: enter 0.45s ease;
+      }
+      @keyframes enter {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+      }
+      .story p {
+        margin: 0 0 9px;
+        color: var(--mint);
+        font: 8px monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .story h1 {
+        margin: 0 0 10px;
+        font-size: clamp(31px, 3.7vw, 55px);
+        line-height: 0.98;
+        letter-spacing: -0.055em;
+        font-weight: 520;
+      }
+      .story span {
+        display: block;
+        max-width: 460px;
+        color: #a9bab7;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+      .progress {
+        height: 2px;
+        margin-top: 18px;
+        background: #ffffff20;
+      }
+      .progress i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--mint), var(--gold));
+        transition: 0.55s;
+      }
+      .mode-badge {
+        position: absolute;
+        z-index: 700;
+        right: 28px;
+        top: 25px;
+        padding: 11px 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #d9eeea25;
+        border-radius: 9px;
+        color: #b9cbc7;
+        background: #061315d9;
+        font: 8px monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .mode-badge i {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--mint);
+        box-shadow: 0 0 0 4px #76dfc016;
+      }
+      .legend {
+        position: absolute;
+        z-index: 700;
+        right: 29px;
+        bottom: 31px;
+        width: 194px;
+        padding: 14px 15px;
+        border: 1px solid #d8efea21;
+        border-radius: 11px;
+        background: #061315df;
+      }
+      .legend strong {
+        display: block;
+        margin-bottom: 9px;
+        color: #bdcdca;
+        font: 8px monospace;
+        text-transform: uppercase;
+      }
+      .legend > i {
+        display: block;
+        height: 7px;
+        border-radius: 4px;
+        background: linear-gradient(
+          90deg,
+          #265e78,
+          #36a99a,
+          #eed45e,
+          #ef7a34,
+          #b62838
+        );
+      }
+      .legend.uncertainty > i {
+        background: linear-gradient(
+          90deg,
+          #245f99,
+          #38afaf,
+          #dec649,
+          #de623d,
+          #9b256e
+        );
+      }
+      .legend div {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 5px;
+        color: #718784;
+        font: 7px monospace;
+      }
+      .legend.globe {
+        display: none;
+      }
+      .coords {
+        position: absolute;
+        z-index: 700;
+        left: 244px;
+        top: 31px;
+        color: #79d9be;
+        font: 9px monospace;
+      }
+      .mine {
+        padding: 8px 11px !important;
+        border: 1px solid #ffffffcc !important;
+        border-radius: 7px !important;
+        color: #fff !important;
+        background: #591a12f2 !important;
+        box-shadow: 0 8px 24px #0007 !important;
+        font: 11px monospace !important;
+      }
+      .mine strong {
+        display: block;
+        font-size: 12px;
+      }
+      .mine small {
+        display: block;
+        margin-top: 3px;
+        color: #ffc8a9;
+        font-size: 8px;
+      }
+      .mine:before {
+        border-top-color: #591a12f2 !important;
+      }
+      .leaflet-control-zoom a {
+        color: #e2ecea !important;
+        background: #071214dc !important;
+        border-color: #ffffff24 !important;
+      }
+      .leaflet-control-scale-line {
+        color: #d6e1df !important;
+        border-color: #d6e1df !important;
+        background: #07121499 !important;
+      }
+      .leaflet-control-attribution {
+        color: #748683 !important;
+        background: #071214bb !important;
+      }
+      .leaflet-control-attribution a {
+        color: #9aaba8 !important;
+      }
+      .cesium-viewer-bottom,
+      .cesium-viewer-toolbar,
+      .cesium-viewer-animationContainer,
+      .cesium-viewer-timelineContainer,
+      .cesium-viewer-fullscreenContainer {
+        display: none !important;
+      }
+      .cesium-widget-credits {
+        opacity: 0.38;
+        transform: scale(0.72);
+        transform-origin: right bottom;
+      }
+      .fallback {
+        display: none;
+        position: absolute;
+        z-index: 650;
+        inset: 0;
+        place-items: center;
+        background: radial-gradient(circle at 55% 45%, #1d3538, #050b0e 65%);
+        color: #8fa5a1;
+        font: 10px monospace;
+      }
+      @media (max-width: 760px) {
+        .brand {
+          left: 14px;
+          top: 13px;
+        }
+        .brand small,
+        .coords {
+          display: none;
+        }
+        .mode-badge {
+          right: 12px;
+          top: 13px;
+        }
+        .rail {
+          left: 9px;
+          top: auto;
+          bottom: 10px;
+          width: calc(100vw - 18px);
+          padding: 7px;
+          display: flex;
+          gap: 4px;
+          overflow: auto;
+        }
+        .rail-title {
+          display: none;
+        }
+        .rail button {
+          flex: 0 0 69px;
+          min-height: 50px;
+          margin: 0;
+          padding: 5px;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          text-align: center;
+          gap: 3px;
+        }
+        .rail button > i {
+          width: 23px;
+          height: 23px;
+          margin: auto;
+          font-size: 11px;
+        }
+        .rail button strong {
+          font-size: 8px;
+        }
+        .rail button small {
+          display: none;
+        }
+        .rail .tour {
+          margin-top: 0;
+        }
+        .story {
+          left: 13px;
+          bottom: 82px;
+          width: calc(100vw - 26px);
+          padding: 20px;
+        }
+        .story h1 {
+          font-size: 34px;
+        }
+        .legend {
+          display: none;
+        }
+      }
+      .rail button strong {
+        font-size: 12px;
+        line-height: 1.2;
+      }
+      .rail button small {
+        font-size: 8px;
+        line-height: 1.3;
+      }
+      .rail button:hover {
+        color: #fff;
+        border-color: #76dfc05c;
+        background: linear-gradient(90deg, #76dfc02d, #ffffff0c);
+        transform: translateX(5px);
+        box-shadow: 0 8px 24px #0004;
+      }
+      .rail button:hover > i {
+        color: #071411;
+        border-color: var(--mint);
+        background: var(--mint);
+      }
+      .welcome {
+        position: fixed;
+        z-index: 1000;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+        background:
+          radial-gradient(
+            circle at 70% 42%,
+            transparent 0 22%,
+            rgba(1, 6, 8, 0.18) 48%,
+            rgba(1, 5, 7, 0.74) 100%
+          ),
+          linear-gradient(
+            90deg,
+            rgba(1, 6, 8, 0.91),
+            rgba(1, 6, 8, 0.35) 60%,
+            rgba(1, 6, 8, 0.62)
+          );
+        backdrop-filter: brightness(0.72);
+        transition:
+          opacity 0.7s,
+          visibility 0.7s;
+      }
+      .welcome.closed {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .welcome-card {
+        width: min(900px, calc(100vw - 48px));
+        padding: 45px 50px 34px;
+        border: 1px solid #d9efea2c;
+        border-radius: 23px;
+        background: linear-gradient(
+          135deg,
+          rgba(4, 14, 16, 0.95),
+          rgba(7, 23, 25, 0.75)
+        );
+        box-shadow: 0 30px 100px #000b;
+        backdrop-filter: blur(18px);
+        text-align: center;
+      }
+      .welcome-kicker {
+        margin: 0 0 17px;
+        color: var(--mint);
+        font: 10px monospace;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+      .welcome h1 {
+        margin: 0;
+        color: #f5faf9;
+        font-size: clamp(38px, 5.4vw, 75px);
+        line-height: 0.95;
+        letter-spacing: -0.055em;
+        font-weight: 550;
+      }
+      .welcome h1 em {
+        display: block;
+        margin-top: 7px;
+        color: transparent;
+        font-style: normal;
+        background: linear-gradient(90deg, #82e4c8, #f0ba75);
+        background-clip: text;
+        -webkit-background-clip: text;
+      }
+      .welcome-subtitle {
+        max-width: 760px;
+        margin: 25px auto 0;
+        color: #bfcecb;
+        font-size: 15px;
+        line-height: 1.65;
+      }
+      .welcome-meta {
+        margin-top: 22px;
+        color: #7f9691;
+        font: 9px monospace;
+        line-height: 1.7;
+        letter-spacing: 0.04em;
+      }
+      .enter {
+        margin-top: 29px;
+        padding: 15px 31px;
+        border: 1px solid #8be7cc;
+        border-radius: 11px;
+        color: #061310;
+        background: #83e2c6;
+        font: 700 13px monospace;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        cursor: pointer;
+        box-shadow:
+          0 0 0 5px #76dfc012,
+          0 15px 42px #184c3e66;
+        transition: 0.25s;
+      }
+      .enter:hover {
+        color: #fff;
+        border-color: #f0b36c;
+        background: #d78f48;
+        transform: translateY(-3px) scale(1.03);
+        box-shadow:
+          0 0 0 6px #e7a85e18,
+          0 18px 48px #0008;
+      }
+      .identity {
+        margin-top: 33px;
+        padding-top: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        border-top: 1px solid #d9efea1b;
+      }
+      .identity img {
+        width: 240px;
+        max-height: 66px;
+        object-fit: contain;
+        padding: 7px 11px;
+        border-radius: 9px;
+        background: #fff;
+      }
+      .identity div {
+        text-align: left;
+      }
+      .identity strong {
+        display: block;
+        color: #edf6f3;
+        font-size: 13px;
+      }
+      .identity span {
+        display: block;
+        margin-top: 6px;
+        color: #819792;
+        font: 8px monospace;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .paper-link {
+        color: #efb670;
+        text-decoration: none;
+      }
+      .paper-link:hover {
+        color: #fff;
+      }
+      @media (max-width: 760px) {
+        .welcome {
+          padding: 13px;
+        }
+        .welcome-card {
+          width: 100%;
+          padding: 29px 20px 22px;
+        }
+        .welcome h1 {
+          font-size: 39px;
+        }
+        .welcome-subtitle {
+          font-size: 12px;
+        }
+        .identity {
+          flex-direction: column;
+          gap: 11px;
+        }
+        .identity img {
+          width: 205px;
+        }
+        .identity div {
+          text-align: center;
+        }
+        .rail button:hover {
+          transform: translateY(-3px);
+        }
+      }
+      /* Light professional interface — the natural 3D Earth remains the visual background */
+      body {
+        background: #dfe3e2;
+        color: #243236;
+      }
+      #map2d {
+        background: #dfe3e2;
+      }
+      .shade {
+        background:
+          linear-gradient(
+            90deg,
+            rgba(226, 231, 229, 0.78),
+            rgba(226, 231, 229, 0.08) 38%,
+            transparent 72%
+          ),
+          linear-gradient(0deg, rgba(220, 225, 223, 0.24), transparent 40%);
+      }
+      .brand {
+        padding: 9px 13px;
+        border: 1px solid #c8d0ce;
+        border-radius: 12px;
+        background: rgba(247, 248, 248, 0.94);
+        box-shadow: 0 10px 30px rgba(30, 47, 49, 0.12);
+      }
+      .mark {
+        color: #fff;
+        border-color: #267767;
+        background: #287a69;
+      }
+      .brand strong {
+        color: #243236;
+      }
+      .brand small {
+        color: #6b7d80;
+      }
+      .rail {
+        border-color: #c7cecd;
+        background: rgba(245, 247, 246, 0.96);
+        box-shadow: 0 20px 55px rgba(25, 42, 45, 0.16);
+      }
+      .rail-title {
+        color: #697b7e;
+      }
+      .rail button {
+        color: #35474b;
+      }
+      .rail button small {
+        color: #748589;
+      }
+      .rail button > i {
+        color: #42615b;
+        border-color: #cad6d3;
+        background: #e9edec;
+      }
+      .rail button:hover {
+        color: #17332d;
+        border-color: #4ba28f;
+        background: linear-gradient(90deg, #d7e8e3, #f1f4f3);
+        box-shadow: 0 8px 22px rgba(39, 95, 83, 0.15);
+      }
+      .rail button.active {
+        color: #17332d;
+        border-color: #4ba28f;
+        background: linear-gradient(90deg, #d6e7e2, #f4f6f5);
+        box-shadow: inset 3px 0 #287a69;
+      }
+      .rail button.active > i,
+      .rail button:hover > i {
+        color: #fff;
+        border-color: #287a69;
+        background: #287a69;
+      }
+      .rail button.active small {
+        color: #526d67;
+      }
+      .rail .tour {
+        color: #8d5228;
+        border-color: #d3a67f;
+        background: #f4e8de;
+      }
+      .story {
+        color: #243236;
+        border-color: #cbd2d1;
+        border-left-color: #287a69;
+        background: linear-gradient(
+          90deg,
+          rgba(247, 248, 248, 0.98),
+          rgba(237, 240, 239, 0.94)
+        );
+        box-shadow: 0 20px 55px rgba(27, 43, 46, 0.16);
+      }
+      .story p {
+        color: #287a69;
+      }
+      .story h1 {
+        color: #1f2d31;
+      }
+      .story span {
+        color: #53676b;
+      }
+      .progress {
+        background: #d2d9d7;
+      }
+      .progress i {
+        background: linear-gradient(90deg, #287a69, #c8793d);
+      }
+      .mode-badge,
+      .legend {
+        color: #3f5357;
+        border-color: #c9d0cf;
+        background: rgba(247, 248, 248, 0.95);
+        box-shadow: 0 10px 28px rgba(27, 43, 46, 0.12);
+      }
+      .mode-badge i {
+        background: #287a69;
+      }
+      .legend strong {
+        color: #44575b;
+      }
+      .legend div {
+        color: #63767a;
+      }
+      .coords {
+        color: #216c5d;
+        padding: 9px 12px;
+        border: 1px solid #cbd3d1;
+        border-radius: 8px;
+        background: rgba(247, 248, 248, 0.95);
+      }
+      .leaflet-control-zoom a {
+        color: #2d4145 !important;
+        background: #f5f6f6 !important;
+        border-color: #cbd2d1 !important;
+      }
+      .leaflet-control-scale-line {
+        color: #31464a !important;
+        border-color: #51676b !important;
+        background: #f5f6f6e8 !important;
+      }
+      .leaflet-control-attribution {
+        color: #647579 !important;
+        background: #f3f5f4eb !important;
+      }
+      .welcome {
+        background: linear-gradient(
+          90deg,
+          rgba(231, 235, 234, 0.96),
+          rgba(231, 235, 234, 0.76) 52%,
+          rgba(231, 235, 234, 0.38)
+        );
+        backdrop-filter: brightness(1.05) saturate(0.72);
+      }
+      .welcome-card {
+        border-color: #c5cdcb;
+        background: rgba(246, 248, 247, 0.97);
+        box-shadow: 0 30px 100px rgba(20, 37, 40, 0.22);
+      }
+      .welcome-kicker {
+        color: #287a69;
+      }
+      .welcome h1 {
+        color: #1e2c30;
+      }
+      .welcome h1 em {
+        background: linear-gradient(90deg, #287a69, #b76934);
+        background-clip: text;
+        -webkit-background-clip: text;
+      }
+      .welcome-subtitle {
+        color: #4d6165;
+      }
+      .welcome-meta {
+        color: #65787c;
+      }
+      .paper-link {
+        color: #996039;
+      }
+      .paper-link:hover {
+        color: #287a69;
+      }
+      .enter {
+        color: #fff;
+        border-color: #287a69;
+        background: #287a69;
+        box-shadow:
+          0 0 0 5px rgba(40, 122, 105, 0.1),
+          0 15px 36px rgba(28, 85, 73, 0.23);
+      }
+      .enter:hover {
+        color: #fff;
+        border-color: #b96e36;
+        background: #b96e36;
+      }
+      .identity {
+        border-color: #d3d9d8;
+      }
+      .identity strong {
+        color: #26363a;
+      }
+      .identity span {
+        color: #667a7d;
+      }
+      .identity img {
+        border: 1px solid #cfd6d4;
+      }
+      /* Guaranteed scientific-gray rendering */
+      .shade {
+        display: none !important;
+      }
+      #globe,
+      #globe .cesium-widget,
+      #globe canvas {
+        background: #d9dedd !important;
+      }
+      #globe canvas {
+        filter: saturate(0.72) brightness(1.08) contrast(0.9);
+      }
+      #map2d .leaflet-tile-pane {
+        filter: grayscale(1) brightness(1.08) contrast(0.86);
+      }
+      .fallback {
+        color: #4d6064;
+        background: #dfe3e2;
+      }
+      .mine {
+        color: #29383c !important;
+        border-color: #b86443 !important;
+        background: rgba(248, 249, 248, 0.97) !important;
+        box-shadow: 0 8px 24px rgba(34, 48, 51, 0.2) !important;
+      }
+      .mine small {
+        color: #9d5035;
+      }
+      .mine:before {
+        border-top-color: rgba(248, 249, 248, 0.97) !important;
+      }
+      .coords {
+        min-width: 255px;
+        padding: 12px 16px !important;
+        color: #1d5f53 !important;
+        font: 700 13px/1.2 monospace !important;
+        letter-spacing: 0.025em !important;
+        text-align: center;
+        box-shadow: 0 10px 28px rgba(30, 47, 49, 0.15);
+      }
+      .tour-timeline {
+        --p: 0%;
+        position: absolute;
+        z-index: 850;
+        left: 50%;
+        top: 86px;
+        width: min(790px, calc(100vw - 500px));
+        padding: 17px 21px 14px;
+        display: none;
+        transform: translateX(-50%);
+        border: 1px solid #b9c5c2;
+        border-radius: 15px;
+        background: rgba(248, 249, 249, 0.98);
+        box-shadow: 0 18px 50px rgba(29, 45, 48, 0.2);
+        backdrop-filter: blur(12px);
+      }
+      .tour-timeline.active {
+        display: block;
+        animation: timeline-in 0.4s ease both;
+      }
+      @keyframes timeline-in {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -12px);
+        }
+      }
+      .timeline-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 13px;
+      }
+      .timeline-head strong {
+        color: #25383c;
+        font-size: 12px;
+      }
+      .timeline-head span {
+        padding: 5px 8px;
+        border-radius: 6px;
+        color: #fff;
+        background: #287a69;
+        font: 8px monospace;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      .tour-timeline input {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 100%;
+        height: 7px;
+        margin: 0;
+        border-radius: 9px;
+        background: linear-gradient(
+          90deg,
+          #287a69 0 var(--p),
+          #cbd4d2 var(--p) 100%
+        );
+        outline: none;
+        cursor: pointer;
+      }
+      .tour-timeline input::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 19px;
+        height: 19px;
+        border: 3px solid #fff;
+        border-radius: 50%;
+        background: #b8683d;
+        box-shadow: 0 2px 8px rgba(33, 48, 51, 0.35);
+        transition: 0.2s;
+      }
+      .tour-timeline input::-webkit-slider-thumb:hover {
+        transform: scale(1.18);
+      }
+      .timeline-labels {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 4px;
+        color: #64777a;
+        font: 8px monospace;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      .timeline-labels span {
+        position: relative;
+        padding-top: 7px;
+        transition: 0.25s;
+      }
+      .timeline-labels span:before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: -15px;
+        width: 7px;
+        height: 7px;
+        border: 2px solid #f8f9f9;
+        border-radius: 50%;
+        background: #cbd4d2;
+        transform: translateX(-50%);
+      }
+      .timeline-labels span.active {
+        color: #216c5d;
+        font-weight: 800;
+        transform: translateY(2px);
+      }
+      .timeline-labels span.active:before {
+        background: #b8683d;
+        box-shadow: 0 0 0 4px rgba(184, 104, 61, 0.13);
+      }
+      .timeline-labels span:first-child {
+        text-align: left;
+      }
+      .timeline-labels span:first-child:before {
+        left: 4px;
+      }
+      .timeline-labels span:last-child {
+        text-align: right;
+      }
+      .timeline-labels span:last-child:before {
+        left: auto;
+        right: 0;
+      }
+      .scene-flash {
+        position: absolute;
+        z-index: 820;
+        right: 8%;
+        top: 43%;
+        width: 330px;
+        padding: 22px 24px;
+        pointer-events: none;
+        border: 1px solid rgba(49, 70, 74, 0.18);
+        border-radius: 17px;
+        background: rgba(247, 249, 248, 0.93);
+        box-shadow: 0 24px 70px rgba(26, 43, 46, 0.2);
+        opacity: 0;
+        transform: translateY(25px) scale(0.96);
+      }
+      .scene-flash.play {
+        animation: scene-flash 1.55s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+      }
+      @keyframes scene-flash {
+        0% {
+          opacity: 0;
+          transform: translateY(25px) scale(0.96);
+        }
+        18%,
+        72% {
+          opacity: 1;
+          transform: none;
+        }
+        100% {
+          opacity: 0;
+          transform: translateY(-12px) scale(1.02);
+        }
+      }
+      .scene-flash b {
+        display: block;
+        color: #287a69;
+        font: 700 10px monospace;
+        letter-spacing: 0.12em;
+      }
+      .scene-flash strong {
+        display: block;
+        margin-top: 9px;
+        color: #24363a;
+        font-size: 27px;
+        letter-spacing: -0.04em;
+      }
+      .scene-flash small {
+        display: block;
+        margin-top: 6px;
+        color: #65777a;
+        font: 9px monospace;
+      }
+      .mode-badge {
+        transition:
+          transform 0.35s,
+          background 0.35s;
+      }
+      .tour-timeline.active ~ .mode-badge {
+        transform: scale(1.03);
+      }
+      @media (max-width: 760px) {
+        .coords {
+          min-width: 0;
+        }
+        .tour-timeline {
+          top: 76px;
+          width: calc(100vw - 24px);
+          padding: 12px;
+        }
+        .timeline-labels {
+          font-size: 6px;
+        }
+        .scene-flash {
+          right: 14px;
+          top: 40%;
+          width: calc(100vw - 28px);
+        }
+        .story {
+          bottom: 158px;
+        }
+      }
+      /* V3 cinematic light-atlas redesign */
+      :root { --atlas:#f4f6f5; --teal:#176f63; --copper:#c66b3d; --navy:#20363d; }
+      body { background:linear-gradient(135deg,#dce5e3,#f3f5f4); color:var(--navy); }
+      #globe canvas { filter:saturate(.94) brightness(1.08) contrast(.96)!important; }
+      #globe,#globe .cesium-widget,#globe canvas { background:#cbd9dc!important; }
+      .brand { left:28px;top:24px;padding:12px 16px;border-radius:16px;background:rgba(251,252,252,.95);box-shadow:0 16px 45px rgba(30,55,58,.16); }
+      .mark { width:46px;height:46px;border-radius:14px;background:linear-gradient(145deg,#1d806f,#145d54);box-shadow:0 8px 20px rgba(23,111,99,.25); }
+      .brand strong { font-size:16px;letter-spacing:-.02em; }
+      .rail { left:25px;top:112px;width:226px;padding:14px;border:1px solid rgba(164,181,178,.75);border-radius:20px;background:rgba(248,250,249,.94);box-shadow:0 22px 65px rgba(34,57,60,.17); }
+      .rail-title { padding:4px 10px 13px;font-size:9px;color:#607479; }
+      .rail button { min-height:61px;margin:5px 0;padding:9px 11px;grid-template-columns:38px 1fr;gap:11px;border-radius:13px; }
+      .rail button > i { width:37px;height:37px;border-radius:11px;font-size:16px; }
+      .rail button strong { font-size:13px; }.rail button small { font-size:8px;color:#718287; }
+      .rail button:hover { transform:translateX(7px) scale(1.015);box-shadow:0 12px 30px rgba(31,93,81,.16); }
+      .rail button.active { background:linear-gradient(100deg,#d3e8e2,#f9faf9);box-shadow:inset 4px 0 var(--teal),0 10px 25px rgba(37,96,84,.12); }
+      .rail button.active:after { content:"NOW";position:absolute;right:10px;top:9px;color:#fff;background:var(--teal);padding:3px 5px;border-radius:5px;font:700 6px monospace;letter-spacing:.08em; }
+      .story { left:278px;bottom:36px;width:min(590px,calc(100vw - 340px));padding:28px 32px;border:1px solid rgba(182,195,192,.85);border-left:5px solid var(--teal);border-radius:0 20px 20px 0;background:rgba(250,251,251,.96);box-shadow:0 24px 65px rgba(26,48,52,.18); }
+      .story h1 { font-size:clamp(35px,4vw,61px);color:#1d3137; }.story span { max-width:520px;font-size:13px;line-height:1.65; }
+      .progress { height:6px;border-radius:8px;overflow:hidden; }.progress i { border-radius:8px;box-shadow:0 0 14px rgba(23,111,99,.35); }
+      .coords { left:auto;right:28px;top:auto;bottom:128px;min-width:310px!important;padding:15px 20px!important;border:1px solid #adbdb9!important;border-radius:14px!important;color:#183e3a!important;background:rgba(250,252,251,.97)!important;font:800 14px/1.35 monospace!important;text-align:left!important;box-shadow:0 15px 40px rgba(30,52,56,.18)!important; }
+      .coords:before { content:"LIVE MAP POSITION";display:block;margin-bottom:7px;color:#6b7f83;font:700 8px monospace;letter-spacing:.15em; }
+      .mode-badge { right:28px;top:27px;padding:13px 17px;border-radius:12px;font-size:9px;background:rgba(250,252,251,.97); }
+      .legend { right:28px;bottom:31px;width:230px;padding:17px 18px;border-radius:14px; }.legend > i { height:10px; }
+      .tour-timeline { top:24px;width:min(850px,calc(100vw - 590px));padding:18px 23px 17px;border-radius:18px;border-color:#aebdb9;background:rgba(252,253,253,.98);box-shadow:0 20px 65px rgba(25,52,55,.22); }
+      .timeline-head strong { font-size:14px; }.timeline-head span { padding:6px 10px;font-size:9px;box-shadow:0 5px 14px rgba(23,111,99,.22); }
+      .tour-timeline input { height:9px; }.tour-timeline input::-webkit-slider-thumb { width:23px;height:23px;border-width:4px;box-shadow:0 0 0 5px rgba(198,107,61,.13),0 4px 12px rgba(33,48,51,.35); }
+      .timeline-labels { font-size:9px;margin-top:13px; }.timeline-labels span { padding-top:10px; }.timeline-labels span:before { top:-18px;width:9px;height:9px; }.timeline-labels span.active { color:var(--copper);font-size:10px; }
+      .scene-flash { right:7%;top:37%;width:380px;padding:27px 29px;border-radius:22px;border-left:5px solid var(--copper);background:rgba(252,253,252,.97);box-shadow:0 30px 85px rgba(26,43,46,.24); }
+      .scene-flash.play { animation:scene-cinema 2.35s cubic-bezier(.18,.78,.2,1) both; }
+      @keyframes scene-cinema { 0%{opacity:0;transform:translateX(55px) scale(.92);filter:blur(5px)} 16%,72%{opacity:1;transform:none;filter:none} 100%{opacity:0;transform:translateX(-25px) scale(1.025);filter:blur(2px)} }
+      .scene-flash b { color:var(--copper);font-size:11px; }.scene-flash strong { font-size:34px; }.scene-flash small { font-size:10px; }
+      .welcome { background:linear-gradient(105deg,rgba(235,240,238,.98) 0%,rgba(235,240,238,.92) 47%,rgba(235,240,238,.32) 100%);backdrop-filter:brightness(1.05) saturate(.88); }
+      .welcome-card { max-width:920px;padding:49px 56px 37px;border-radius:28px;background:rgba(252,253,253,.97);box-shadow:0 35px 110px rgba(27,54,57,.25); }
+      .welcome-kicker { font-size:11px; }.welcome h1 { font-size:clamp(43px,5.8vw,78px); }.welcome-subtitle { font-size:16px; }.enter { padding:17px 38px;border-radius:14px;font-size:14px; }
+      .identity { gap:30px;padding-top:26px; }
+      .identity img { width:360px;max-height:96px;padding:10px 15px;border-radius:13px;box-shadow:0 10px 28px rgba(29,52,56,.12); }
+      .identity strong { font-size:21px;letter-spacing:-.015em; }
+      .identity span { margin-top:8px;font-size:10px;line-height:1.55; }
+      @media(max-width:1100px) { .tour-timeline{left:270px;transform:none;width:calc(100vw - 550px)} }
+      @media(max-width:760px) { .brand{left:12px;top:12px}.rail{left:9px;top:auto;width:calc(100vw - 18px)}.story{left:12px;width:calc(100vw - 24px)}.coords{display:none}.tour-timeline{left:12px;top:78px;transform:none;width:calc(100vw - 24px)} }
+      /* Charcoal scientific-control theme; maps remain vivid and readable */
+      .brand,.rail,.story,.mode-badge,.legend,.coords,.tour-timeline,.scene-flash {
+        color:#eef3f2!important;border-color:#596668!important;
+        background:rgba(43,49,51,.96)!important;
+        box-shadow:0 18px 55px rgba(9,14,16,.28)!important;
+      }
+      .brand strong,.story h1,.timeline-head strong,.scene-flash strong,.legend strong { color:#f4f7f6!important; }
+      .brand small,.rail-title,.rail button small,.story span,.timeline-labels,.scene-flash small,.legend div { color:#aebcba!important; }
+      .rail button { color:#e2e9e7;background:rgba(255,255,255,.025); }
+      .rail button>i { color:#bcd0cb;border-color:#657473;background:#384245; }
+      .rail button:hover { color:#fff;border-color:#6bc2ae;background:linear-gradient(100deg,#3b5550,#343d3f); }
+      .rail button.active { color:#fff;border-color:#5bb29f;background:linear-gradient(100deg,#285f55,#354244);box-shadow:inset 4px 0 #79d5bf,0 10px 25px rgba(5,13,14,.22); }
+      .rail button.active small { color:#c5d8d3!important; }
+      .story p,.scene-flash b { color:#80dcc4!important; }
+      .coords { color:#f3f7f6!important; }.coords:before { color:#8faaa5!important; }
+      .mode-badge { color:#d7e4e1!important; }
+      .timeline-head span { background:#55a893!important; }.timeline-labels span.active { color:#f1a26d!important; }
+      .tour-timeline input { background:linear-gradient(90deg,#65c5ae 0 var(--p),#667274 var(--p) 100%); }
+      .welcome-card { background:rgba(47,54,56,.97)!important;border-color:#647173!important; }
+      .welcome h1,.identity strong { color:#f5f7f7!important; }.welcome-subtitle,.welcome-meta,.identity span { color:#bac6c4!important; }
+      .welcome-kicker { color:#7fd5bf!important; }.welcome h1 em { background:linear-gradient(90deg,#75d4bc,#e79b68);background-clip:text;-webkit-background-clip:text; }
+      .welcome { background:linear-gradient(105deg,rgba(62,69,71,.97),rgba(62,69,71,.88) 52%,rgba(62,69,71,.30)); }
+      .leaflet-popup-content-wrapper,.leaflet-popup-tip { color:#edf3f1;background:rgba(39,45,47,.97); }
+      .leaflet-popup-content-wrapper { border:1px solid #697678;border-radius:14px;box-shadow:0 18px 45px rgba(8,13,14,.38); }
+      .leaflet-popup-content { min-width:245px;margin:16px 18px;font:12px/1.45 Inter,Segoe UI,sans-serif; }
+      .feature-popup h3 { margin:0 0 5px;color:#7fd7c0;font-size:16px; }.feature-popup>small { color:#91a6a2;font:8px monospace;letter-spacing:.11em;text-transform:uppercase; }
+      .feature-popup dl { margin:12px 0 0;display:grid;grid-template-columns:88px 1fr;gap:7px 10px; }
+      .feature-popup dt { color:#8ea19e;font-size:10px; }.feature-popup dd { margin:0;color:#f0f4f3;font-size:11px;word-break:break-word; }
+      .leaflet-container a.leaflet-popup-close-button { color:#aebfbc; }
+      /* Phone and tablet layout */
+      @media (max-width:760px) {
+        html,body,#globe,#map2d { width:100%;height:100%;height:100dvh; }
+        .brand { left:10px;top:10px;padding:7px 10px;border-radius:12px;gap:8px; }
+        .mark { width:34px;height:34px;border-radius:10px;font-size:12px; }
+        .brand strong { font-size:12px; }.brand small { display:none; }
+        .mode-badge { right:10px;top:10px;padding:10px 11px;font-size:7px;max-width:145px; }
+        .rail { left:8px;right:8px;bottom:8px;top:auto;width:auto;height:76px;padding:6px;border-radius:15px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none; }
+        .rail::-webkit-scrollbar { display:none; }.rail-title { display:none; }
+        .rail #buttons { display:flex;gap:5px;width:max-content;height:100%; }
+        .rail button { flex:0 0 74px;width:74px;min-height:62px;height:62px;margin:0;padding:5px 4px;display:flex;flex-direction:column;justify-content:center;gap:3px;border-radius:10px;text-align:center; }
+        .rail button>i { width:25px;height:25px;margin:0 auto;border-radius:7px;font-size:11px; }
+        .rail button strong { font-size:9px;line-height:1.1; }.rail button small,.rail button.active:after { display:none; }
+        .rail button:hover { transform:none; }.rail .tour { margin:0; }
+        .story { left:9px;right:9px;bottom:94px;width:auto;max-height:166px;padding:14px 16px;border-left-width:4px;border-radius:0 14px 14px 0;overflow:hidden; }
+        .story p { margin-bottom:6px;font-size:6px; }.story h1 { margin-bottom:6px;font-size:27px;line-height:1; }
+        .story span { font-size:10px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+        .progress { height:4px;margin-top:9px; }
+        .coords,.legend { display:none!important; }
+        .tour-timeline { left:9px;right:9px;top:58px;width:auto;padding:11px 12px 10px;transform:none;border-radius:13px; }
+        .timeline-head { margin-bottom:9px; }.timeline-head strong { max-width:70%;font-size:9px; }.timeline-head span { padding:4px 6px;font-size:6px; }
+        .tour-timeline input { height:6px; }.tour-timeline input::-webkit-slider-thumb { width:18px;height:18px;border-width:3px; }
+        .timeline-labels { margin-top:8px;font-size:5.5px;gap:1px; }.timeline-labels span { padding-top:7px; }.timeline-labels span:before { top:-13px;width:7px;height:7px; }
+        .timeline-labels span.active { font-size:6px; }
+        .scene-flash { left:18px;right:18px;top:34%;width:auto;padding:18px 20px;border-radius:16px; }
+        .scene-flash strong { font-size:25px; }.scene-flash small { font-size:8px; }
+        .welcome { align-items:start;padding:12px;overflow-y:auto; }
+        .welcome-card { width:100%;margin:auto;padding:25px 17px 20px;border-radius:20px; }
+        .welcome-kicker { margin-bottom:11px;font-size:8px; }.welcome h1 { font-size:36px;line-height:.98; }
+        .welcome-subtitle { margin-top:16px;font-size:11px;line-height:1.5; }.welcome-meta { margin-top:13px;font-size:7px; }
+        .enter { margin-top:18px;padding:12px 24px;font-size:11px; }
+        .identity { margin-top:20px;padding-top:16px;gap:10px;flex-direction:column; }
+        .identity img { width:min(270px,100%);max-height:72px;padding:7px 10px; }.identity div { text-align:center; }
+        .identity strong { font-size:17px; }.identity span { margin-top:5px;font-size:8px; }
+        .leaflet-popup-content { min-width:0;width:min(240px,calc(100vw - 80px));margin:13px 15px; }
+        .leaflet-control-zoom { margin-top:62px!important; }
+      }
+      @media (max-width:390px) {
+        .story { max-height:150px;padding:12px 14px; }.story h1 { font-size:23px; }
+        .rail button { flex-basis:68px;width:68px; }.mode-badge span { max-width:105px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+      }
+      @media (max-height:520px) and (orientation:landscape) {
+        .rail { left:8px;right:auto;top:58px;bottom:8px;width:76px;height:auto;overflow-y:auto;overflow-x:hidden; }
+        .rail #buttons { display:flex;flex-direction:column;width:100%;height:max-content; }
+        .rail button { flex:0 0 58px;width:62px;height:58px; }
+        .story { left:94px;right:auto;bottom:10px;width:min(420px,calc(100vw - 190px));max-height:135px; }
+        .story h1 { font-size:24px; }.tour-timeline { left:94px;right:10px;top:10px; }
+      }
+      /* JS-enforced mobile mode for browsers with unreliable viewport queries */
+      body.mobile-ui { width:100vw!important;height:var(--app-h,100dvh)!important;overflow:hidden!important; }
+      body.mobile-ui .brand { left:8px!important;top:8px!important;padding:6px 9px!important; }
+      body.mobile-ui .brand small,body.mobile-ui .coords,body.mobile-ui .legend { display:none!important; }
+      body.mobile-ui .mode-badge { right:8px!important;top:8px!important;padding:9px!important;font-size:7px!important; }
+      body.mobile-ui .rail { left:7px!important;right:7px!important;bottom:7px!important;top:auto!important;width:auto!important;height:74px!important;padding:6px!important;overflow-x:auto!important;overflow-y:hidden!important; }
+      body.mobile-ui .rail #buttons { display:flex!important;flex-flow:row nowrap!important;width:max-content!important;height:62px!important;gap:5px!important; }
+      body.mobile-ui .rail button { flex:0 0 72px!important;width:72px!important;height:60px!important;min-height:60px!important;margin:0!important;padding:4px!important;display:flex!important;flex-direction:column!important;gap:2px!important; }
+      body.mobile-ui .rail button>i { width:24px!important;height:24px!important;margin:auto!important; }
+      body.mobile-ui .rail button strong { font-size:9px!important; }
+      body.mobile-ui .rail button small,body.mobile-ui .rail button.active:after { display:none!important; }
+      body.mobile-ui .story { left:8px!important;right:8px!important;bottom:90px!important;width:auto!important;max-height:148px!important;padding:13px 15px!important;overflow:hidden!important; }
+      body.mobile-ui .story h1 { font-size:25px!important; }
+      body.mobile-ui .story span { font-size:10px!important;line-height:1.35!important;-webkit-line-clamp:2!important; }
+      body.mobile-ui .tour-timeline { left:8px!important;right:8px!important;top:54px!important;width:auto!important;transform:none!important;padding:10px 11px!important; }
+      body.mobile-ui .scene-flash { left:14px!important;right:14px!important;top:31%!important;width:auto!important; }
+      body.mobile-ui .welcome { padding:10px!important;overflow:auto!important;align-items:flex-start!important; }
+      body.mobile-ui .welcome-card { width:100%!important;margin:auto!important;padding:22px 15px 18px!important; }
+      body.mobile-ui .welcome h1 { font-size:34px!important; }
+      body.mobile-ui .welcome-subtitle { font-size:11px!important; }
+      body.mobile-ui .identity img { width:min(260px,100%)!important;max-height:68px!important; }
+      @supports (padding: max(0px)) {
+        body.mobile-ui .rail { bottom:max(7px,env(safe-area-inset-bottom))!important;left:max(7px,env(safe-area-inset-left))!important;right:max(7px,env(safe-area-inset-right))!important; }
+        body.mobile-ui .brand { top:max(8px,env(safe-area-inset-top))!important; }
+      }
+      button:focus-visible,input:focus-visible,a:focus-visible { outline:3px solid #81dec6;outline-offset:3px; }
+      @media (prefers-reduced-motion:reduce) {
+        *,*::before,*::after { animation-duration:.01ms!important;animation-iteration-count:1!important;scroll-behavior:auto!important;transition-duration:.01ms!important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="globe"></div>
+    <div id="map2d"></div>
+    <div class="fallback" id="fallback">
+      3D globe unavailable — switch to Study area
+    </div>
+    <div class="shade"></div>
+    <header class="brand">
+      <span class="mark">G2</span>
+      <div>
+        <strong>GeoHybridGNN v2.0</strong
+        ><small>Interactive 3D research atlas</small>
+      </div>
+    </header>
+    <nav class="rail" id="rail">
+      <div class="rail-title">Explore the research</div>
+    </nav>
+    <section class="story" id="story" aria-live="polite"></section>
+    <aside class="legend globe" id="legend">
+      <strong>Prospectivity probability</strong><i></i>
+      <div><span>Low</span><span>High</span></div>
+    </aside>
+    <div class="coords" id="coords">LAT / LON · Interactive 3D Earth</div>
+    <div class="mode-badge"><i></i><span id="mode">3D globe view</span></div>
+    <section class="tour-timeline" id="tour-timeline">
+      <div class="timeline-head">
+        <strong>GeoHybridGNN animated research presentation</strong
+        ><span id="timeline-status">Scene 1 of 6</span>
+      </div>
+      <input
+        id="tour-range"
+        type="range"
+        min="0"
+        max="5"
+        step="0.01"
+        value="0"
+        aria-label="Presentation scene"
+      />
+      <div class="timeline-labels" id="timeline-labels">
+        <span>3D Globe</span><span>Study Area</span><span>Geology</span
+        ><span>Prediction</span><span>Uncertainty</span><span>Targets</span>
+      </div>
+    </section>
+    <div class="scene-flash" id="scene-flash" aria-live="polite"></div>
+    <section class="welcome" id="welcome">
+      <div class="welcome-card">
+        <p class="welcome-kicker">Interactive scientific research experience</p>
+        <h1>Welcome to <em>GeoHybridGNN v2.0</em></h1>
+        <p class="welcome-subtitle">
+          A geology-informed hybrid deep-learning framework integrating remote
+          sensing, geology, geochemistry and graph intelligence for porphyry
+          copper prospectivity mapping.
+        </p>
+        <p class="welcome-meta">
+          Published in Remote Sensing · 2026 &nbsp;·&nbsp;
+          <a
+            class="paper-link"
+            href="https://doi.org/10.3390/rs18101638"
+            target="_blank"
+            rel="noreferrer"
+            >DOI 10.3390/rs18101638</a
+          >
+        </p>
+        <button class="enter" id="enter" aria-label="Enter the GeoHybridGNN interactive atlas">
+          &gt;&gt;&nbsp; ENTER &nbsp;&lt;&lt;
+        </button>
+        <div class="identity">
+          <img src="/GeoHybridGNN/v2.0/jilin-logo.svg" alt="Jilin University" />
+          <div>
+            <strong>Dr. M. A. Bilal</strong
+            ><span
+              >College of Geo-Exploration Science and Technology · Jilin
+              University</span
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+    <script src="https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/Cesium.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      function applyResponsiveMode() {
+        const mobile = window.innerWidth <= 820 || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
+        document.body.classList.toggle("mobile-ui", mobile);
+        document.documentElement.style.setProperty("--app-h", window.innerHeight + "px");
+      }
+      applyResponsiveMode();
+      window.addEventListener("resize", applyResponsiveMode, { passive:true });
+      window.addEventListener("orientationchange", () => setTimeout(applyResponsiveMode, 150), { passive:true });
+      const root = "/GeoHybridGNN/",
+        bounds = [
+          [25.984817, 59.999735],
+          [32.000057, 68.003885],
+        ];
+      const scenes = [
+        [
+          "globe",
+          "◎",
+          "3D Globe",
+          "Global setting",
+          "Explore Earth in true 3D and locate Pakistan within the global metallogenic context.",
+        ],
+        [
+          "study",
+          "⌖",
+          "Study Area",
+          "Western Chagai Belt",
+          "Move from the globe into the 30 m analysis grid covering the western Chagai porphyry copper belt.",
+        ],
+        [
+          "evidence",
+          "≋",
+          "Geology",
+          "Integrated evidence",
+          "Read lithology, faults, tectonic units and known copper occurrences as one geological system.",
+        ],
+        [
+          "prediction",
+          "◈",
+          "Prediction",
+          "Prospectivity surface",
+          "Explore the ensemble-mean probability surface produced by GeoHybridGNN.",
+        ],
+        [
+          "uncertainty",
+          "◌",
+          "Uncertainty",
+          "Prediction confidence",
+          "Inspect fold-wise variability and distinguish stable targets from uncertain areas.",
+        ],
+        [
+          "targets",
+          "◆",
+          "Mine Targets",
+          "Reko Diq and Saindak",
+          "Finish at the two key Cu–Au mine references, with clear persistent labels at every zoom level.",
+        ],
+      ];
+      let viewer,
+        spin = true;
+      try {
+        Cesium.buildModuleUrl.setBaseUrl(
+          "https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/",
+        );
+        const earthAtlas = new Cesium.UrlTemplateImageryProvider({
+          url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+          credit: "© OpenStreetMap contributors",
+          maximumLevel: 19,
+        });
+        viewer = new Cesium.Viewer("globe", {
+          baseLayer: new Cesium.ImageryLayer(earthAtlas),
+          terrainProvider: new Cesium.EllipsoidTerrainProvider(),
+          animation: false,
+          timeline: false,
+          baseLayerPicker: false,
+          geocoder: false,
+          homeButton: false,
+          sceneModePicker: false,
+          navigationHelpButton: false,
+          fullscreenButton: false,
+          infoBox: false,
+          selectionIndicator: false,
+          shouldAnimate: true,
+        });
+        viewer.scene.globe.enableLighting = false;
+        viewer.scene.globe.baseColor =
+          Cesium.Color.fromCssColorString("#cfd6d4");
+        viewer.scene.skyAtmosphere.show = true;
+        viewer.scene.backgroundColor =
+          Cesium.Color.fromCssColorString("#d9dedd");
+        viewer.camera.setView({
+          destination: Cesium.Cartesian3.fromDegrees(55, 24, 12500000),
+          orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
+        });
+        viewer.entities.add({
+          position: Cesium.Cartesian3.fromDegrees(64.2, 29.2, 120000),
+          point: {
+            pixelSize: 14,
+            color: Cesium.Color.fromCssColorString("#287a69"),
+            outlineColor: Cesium.Color.WHITE,
+            outlineWidth: 3,
+          },
+          label: {
+            text: "PAKISTAN · WESTERN CHAGAI",
+            font: "bold 13px monospace",
+            fillColor: Cesium.Color.fromCssColorString("#243236"),
+            showBackground: true,
+            backgroundColor: Cesium.Color.fromCssColorString("#f4f6f5ee"),
+            pixelOffset: new Cesium.Cartesian2(0, -30),
+            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(
+              0,
+              16000000,
+            ),
+          },
+        });
+        viewer.clock.onTick.addEventListener(() => {
+          if (spin && current === "globe")
+            viewer.scene.camera.rotate(Cesium.Cartesian3.UNIT_Z, -0.00018);
+          if (current === "globe") {
+            const c = viewer.camera.positionCartographic;
+            const lat = Cesium.Math.toDegrees(c.latitude);
+            const lon = Cesium.Math.toDegrees(c.longitude);
+            document.querySelector("#coords").textContent =
+              "LAT " + Math.abs(lat).toFixed(2) + "° " + (lat >= 0 ? "N" : "S") +
+              "  ·  LON " + Math.abs(lon).toFixed(2) + "° " + (lon >= 0 ? "E" : "W");
+          }
+        });
+        viewer.screenSpaceEventHandler.setInputAction(
+          () => (spin = false),
+          Cesium.ScreenSpaceEventType.LEFT_DOWN,
+        );
+      } catch (e) {
+        document.querySelector("#fallback").style.display = "grid";
+      }
+      const map = L.map("map2d", {
+        zoomControl: false,
+        minZoom: 2,
+        maxZoom: 12,
+        worldCopyJump: true,
+      }).setView([29, 64], 5);
+      L.tileLayer(
+        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+        {
+          attribution: "© OpenStreetMap contributors © CARTO",
+          subdomains: "abcd",
+          maxZoom: 20,
+        },
+      ).addTo(map);
+      L.control.zoom({ position: "topright" }).addTo(map);
+      L.control.scale({ imperial: false, position: "bottomright" }).addTo(map);
+      const layers = {
+        prediction: L.imageOverlay(root + "data/prospectivity.png", bounds, {
+          opacity: 0.84,
+        }),
+        uncertainty: L.imageOverlay(root + "data/uncertainty.png", bounds, {
+          opacity: 0.87,
+        }),
+        geology: L.imageOverlay(root + "data/lithology-overlay.png", bounds, {
+          opacity: 0.79,
+        }),
+      };
+      const safe = (v) =>
+        String(v ?? "")
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;");
+      function featurePopup(kind) {
+        return (feature, layer) => {
+          const p = feature.properties || {};
+          const title =
+            p.NAME || p.Name || p.fs_name || p.MDName || p.ADMIN || kind;
+          const rows = Object.entries(p)
+            .filter(([, value]) => value !== null && String(value).trim() !== "")
+            .slice(0, 7)
+            .map(([key, value]) => "<dt>" + safe(key.replaceAll("_", " ")) + "</dt><dd>" + safe(value) + "</dd>")
+            .join("");
+          layer.bindPopup(
+            '<article class="feature-popup"><small>' + safe(kind) +
+              '</small><h3>' + safe(title) + '</h3><dl>' + rows +
+              '</dl><small>Click elsewhere to close</small></article>',
+            { maxWidth: 340 },
+          );
+          layer.on("mouseover", () => layer.setStyle && layer.setStyle({ weight: 3, opacity: 1 }));
+          layer.on("mouseout", () => layers[kind.toLowerCase()] && layers[kind.toLowerCase()].resetStyle && layers[kind.toLowerCase()].resetStyle(layer));
+        };
+      }
+      async function geo(name, file, options) {
+        try {
+          const r = await fetch(root + "data/" + file);
+          layers[name] = L.geoJSON(await r.json(), options);
+        } catch (e) {
+          console.warn(name, e);
+        }
+      }
+      Promise.all([
+        geo("faults", "faults.geojson", {
+          style: { color: "#d55d4a", weight: 1.4, opacity: 0.95 },
+          onEachFeature: featurePopup("Faults"),
+        }),
+        geo("tectonics", "tectonics.geojson", {
+          style: {
+            color: "#8f5f43",
+            weight: 1.2,
+            opacity: 0.8,
+            fillOpacity: 0,
+          },
+          onEachFeature: featurePopup("Tectonics"),
+        }),
+        geo("boundary", "pakistan.geojson", {
+          style: {
+            color: "#31383d",
+            weight: 1.7,
+            opacity: 0.9,
+            fillOpacity: 0,
+          },
+          onEachFeature: featurePopup("Boundary"),
+        }),
+        geo("copper", "copper.geojson", {
+          pointToLayer: (f, ll) =>
+            L.circleMarker(ll, {
+              radius: 4,
+              color: "#fff",
+              weight: 1.2,
+              fillColor: "#b63d2d",
+              fillOpacity: 1,
+            }),
+          onEachFeature: featurePopup("Copper"),
+        }),
+      ]);
+      [
+        [29.1333, 62.0333, "Reko Diq", "Cu–Au mine"],
+        [29.27039, 61.56389, "Saindak", "Cu–Au mine"],
+      ].forEach((s) =>
+        L.circleMarker([s[0], s[1]], {
+          radius: 8,
+          color: "#fff",
+          weight: 2.5,
+          fillColor: "#b84c3b",
+          fillOpacity: 1,
+        })
+          .bindTooltip(
+            "<strong>" + s[2] + "</strong><small>" + s[3] + "</small>",
+            {
+              permanent: true,
+              direction: "top",
+              offset: [0, -11],
+              className: "mine",
+            },
+          )
+          .bindPopup(
+            '<article class="feature-popup"><small>Major Cu–Au target</small><h3>' +
+              s[2] +
+              '</h3><dl><dt>Commodity</dt><dd>Copper–gold</dd><dt>Latitude</dt><dd>' +
+              s[0].toFixed(5) +
+              '° N</dd><dt>Longitude</dt><dd>' +
+              s[1].toFixed(5) +
+              '° E</dd><dt>Context</dt><dd>Western Chagai metallogenic belt</dd></dl></article>',
+          )
+          .addTo(map),
+      );
+      let current = "globe",
+        tour = false,
+        timers = [];
+      const rail = document.querySelector("#rail"),
+        story = document.querySelector("#story"),
+        legend = document.querySelector("#legend");
+      rail.innerHTML +=
+        '<div id="buttons">' +
+        scenes
+          .map(
+            (s) =>
+              '<button type="button" aria-label="Open ' +
+              s[2] +
+              ' scene" data-scene="' +
+              s[0] +
+              '"><i>' +
+              s[1] +
+              "</i><span><strong>" +
+              s[2] +
+              "</strong><small>" +
+              s[3] +
+              "</small></span></button>",
+          )
+          .join("") +
+        '<button type="button" class="tour" id="tour" aria-label="Play the guided research tour"><i>▶</i><span><strong>Guided Tour</strong><small>Auto-play all six scenes</small></span></button></div>';
+      function show(key) {
+        current = key;
+        const isGlobe = key === "globe";
+        document.querySelector("#globe").style.display = isGlobe
+          ? "block"
+          : "none";
+        document.querySelector("#map2d").style.display = isGlobe
+          ? "none"
+          : "block";
+        document.querySelector("#coords").textContent = isGlobe
+          ? "LAT / LON · Drag the 3D Earth"
+          : "LAT " +
+            map.getCenter().lat.toFixed(3) +
+            "° N  ·  LON " +
+            map.getCenter().lng.toFixed(3) +
+            "° E";
+        legend.className = "legend " + key;
+        if (!isGlobe) {
+          setTimeout(() => map.invalidateSize(), 40);
+          Object.values(layers).forEach(
+            (l) => map.hasLayer(l) && map.removeLayer(l),
+          );
+          const add = (...n) =>
+            n.forEach((x) => layers[x] && layers[x].addTo(map));
+          if (key === "study") {
+            add("boundary");
+            map.flyToBounds(bounds, { padding: [65, 65], duration: 2.2 });
+          }
+          if (key === "evidence") {
+            add("geology", "tectonics", "faults", "boundary", "copper");
+            map.flyToBounds(bounds, { padding: [45, 45], duration: 2.2 });
+          }
+          if (key === "prediction") {
+            add("prediction", "faults", "boundary", "copper");
+            map.flyToBounds(bounds, { padding: [45, 45], duration: 2.2 });
+          }
+          if (key === "uncertainty") {
+            add("uncertainty", "faults", "boundary", "copper");
+            map.flyToBounds(bounds, { padding: [45, 45], duration: 2.2 });
+          }
+          if (key === "targets") {
+            add("prediction", "faults", "boundary", "copper");
+            map.flyTo([29.18, 61.82], 8, { duration: 2.2 });
+          }
+        } else if (viewer) {
+          spin = true;
+          viewer.camera.flyTo({
+            destination: Cesium.Cartesian3.fromDegrees(55, 24, 12500000),
+            duration: 2.2,
+          });
+        }
+        const i = scenes.findIndex((s) => s[0] === key),
+          s = scenes[i],
+          timeline = document.querySelector("#tour-timeline");
+        document.querySelector("#mode").textContent = tour
+          ? "VIDEO TOUR · SCENE " + (i + 1) + " / " + scenes.length
+          : isGlobe
+            ? "3D globe view"
+            : "2D scientific map";
+        document.querySelector("#tour-range").value = String(i);
+        timeline.style.setProperty(
+          "--p",
+          (i / (scenes.length - 1)) * 100 + "%",
+        );
+        document.querySelector("#timeline-status").textContent =
+          "Scene " + (i + 1) + " of " + scenes.length;
+        document
+          .querySelectorAll("#timeline-labels span")
+          .forEach((label, index) =>
+            label.classList.toggle("active", index === i),
+          );
+        story.style.animation = "none";
+        story.offsetHeight;
+        story.style.animation = "";
+        story.innerHTML =
+          "<p>" +
+          (tour ? "Animated tour playing" : "GeoHybridGNN") +
+          " · Scene " +
+          String(i + 1).padStart(2, "0") +
+          " / " +
+          String(scenes.length).padStart(2, "0") +
+          "</p><h1>" +
+          s[3] +
+          "</h1><span>" +
+          s[4] +
+          '</span><div class="progress"><i style="width:' +
+          ((i + 1) / scenes.length) * 100 +
+          '%"></i></div>';
+        document
+          .querySelectorAll("[data-scene]")
+          .forEach((b) =>
+            b.classList.toggle("active", b.dataset.scene === key),
+          );
+        if (tour) {
+          const flash = document.querySelector("#scene-flash");
+          flash.innerHTML =
+            "<b>SCENE " +
+            String(i + 1).padStart(2, "0") +
+            "</b><strong>" +
+            s[2] +
+            "</strong><small>" +
+            s[3] +
+            "</small>";
+          flash.classList.remove("play");
+          void flash.offsetWidth;
+          flash.classList.add("play");
+        }
+      }
+      function scheduleTour(from) {
+        timers.forEach(clearTimeout);
+        timers = [];
+        const duration = 6500;
+        const range = document.querySelector("#tour-range");
+        const timeline = document.querySelector("#tour-timeline");
+        const started = performance.now();
+        const totalDuration = Math.max(1, scenes.length - 1 - from) * duration;
+        timers.push(setInterval(() => {
+          if (!tour) return;
+          const fraction = Math.min((performance.now() - started) / totalDuration, 1);
+          const value = Math.min(from + fraction * (scenes.length - 1 - from), scenes.length - 1);
+          range.value = String(value);
+          timeline.style.setProperty("--p", (value / (scenes.length - 1) * 100) + "%");
+        }, 40));
+        for (let i = from + 1; i < scenes.length; i++)
+          timers.push(
+            setTimeout(() => show(scenes[i][0]), (i - from) * duration),
+          );
+        timers.push(
+          setTimeout(() => stop(), (scenes.length - from) * duration + 1200),
+        );
+      }
+      document.querySelectorAll("[data-scene]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            stop();
+            show(b.dataset.scene);
+          }),
+      );
+      function stop() {
+        tour = false;
+        timers.forEach(clearTimeout);
+        timers = [];
+        const b = document.querySelector("#tour");
+        b.classList.remove("active");
+        b.innerHTML =
+          "<i>▶</i><span><strong>Guided Tour</strong><small>Auto-play all six scenes</small></span>";
+        document.querySelector("#tour-timeline").classList.remove("active");
+        document.querySelector("#mode").textContent =
+          current === "globe" ? "3D globe view" : "2D scientific map";
+      }
+      document.querySelector("#tour").onclick = () => {
+        if (tour) return stop();
+        document.querySelector("#welcome").classList.add("closed");
+        tour = true;
+        document.querySelector("#tour-timeline").classList.add("active");
+        const b = document.querySelector("#tour");
+        b.classList.add("active");
+        b.innerHTML =
+          "<i>Ⅱ</i><span><strong>Pause Video</strong><small>Animated presentation playing</small></span>";
+        show("globe");
+        scheduleTour(0);
+      };
+      document.querySelector("#tour-range").oninput = (e) => {
+        const i = Math.round(Number(e.target.value));
+        show(scenes[i][0]);
+        if (tour) scheduleTour(i);
+      };
+      map.on("mousemove", (e) => {
+        if (current !== "globe")
+          document.querySelector("#coords").textContent =
+            "LAT " +
+            e.latlng.lat.toFixed(3) +
+            "° N  ·  LON " +
+            e.latlng.lng.toFixed(3) +
+            "° E";
+      });
+      document.querySelector("#enter").onclick = () =>
+        document.querySelector("#welcome").classList.add("closed");
+      show("globe");
+    </script>
+  </body>
+</html>
