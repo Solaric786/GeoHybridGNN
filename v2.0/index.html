@@ -1270,22 +1270,18 @@
       }
       body.tour-running .mine-point { animation:mine-pulse 1.7s ease-in-out infinite;transform-box:fill-box;transform-origin:center; }
       @keyframes mine-pulse { 0%,100%{stroke-width:2.5;filter:drop-shadow(0 0 0 rgba(199,89,57,0))} 50%{stroke-width:5;filter:drop-shadow(0 0 8px rgba(255,111,69,.9))} }
-      #mobile-globe { display:none;position:absolute;z-index:5;inset:0;overflow:hidden;background:radial-gradient(circle at 50% 42%,#d5dddb 0,#aab7b9 58%,#89979a 100%); }
-      .mobile-sphere { position:absolute;left:50%;top:46%;width:min(82vw,520px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;overflow:hidden;background-color:#6f9eaa;background-image:url('/GeoHybridGNN/v2.0/world-texture.svg');background-repeat:repeat-x;background-size:auto 100%;background-position:62% center;border:2px solid rgba(226,241,237,.9);box-shadow:inset -55px -20px 75px rgba(20,41,48,.42),inset 30px 12px 45px rgba(255,255,255,.35),0 28px 75px rgba(15,31,36,.4); }
-      .mobile-sphere:after { content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 35% 27%,rgba(255,255,255,.25),transparent 34%,rgba(10,30,36,.12) 68%,rgba(5,17,22,.42) 100%);pointer-events:none; }
-      .mobile-sphere.swing { animation:sphere-swing 3.7s cubic-bezier(.45,.05,.22,1) both; }
-      @keyframes sphere-swing { 0%{background-position:62% center;transform:translate(-50%,-50%) rotate(-1deg) scale(1)} 38%{background-position:8% center;transform:translate(-50%,-50%) rotate(4deg) scale(.92)} 58%{background-position:8% center;transform:translate(-50%,-50%) rotate(4deg) scale(.92)} 100%{background-position:62% center;transform:translate(-50%,-50%) rotate(0) scale(1.06)} }
-      .mobile-sphere-label { position:absolute;z-index:2;left:50%;top:46%;transform:translate(22px,-34px);padding:6px 8px;border-radius:7px;color:#eef5f3;background:rgba(37,48,51,.88);font:700 7px monospace;letter-spacing:.07em;pointer-events:none; }
-      .mobile-sphere.swing + .mobile-sphere-label { animation:label-return 3.7s ease both; }
-      @keyframes label-return { 0%,82%{opacity:0;transform:translate(22px,-28px)} 100%{opacity:1;transform:translate(22px,-34px)} }
+      #mobile-globe { display:none;position:absolute;z-index:5;inset:0;overflow:hidden;touch-action:none;background:radial-gradient(circle at 50% 42%,#d3dcda 0,#a9b6b8 58%,#879598 100%); }
+      #mobile-globe canvas { position:absolute;inset:0;width:100%!important;height:100%!important;display:block;touch-action:none; }
+      .mobile-globe-label { position:absolute;z-index:2;left:50%;top:46%;transform:translate(20px,-32px);padding:7px 9px;border:1px solid rgba(236,244,242,.45);border-radius:7px;color:#f4f8f7;background:rgba(37,48,51,.9);font:700 8px monospace;letter-spacing:.07em;pointer-events:none;transition:opacity .35s ease,transform .35s ease;box-shadow:0 7px 20px rgba(12,24,27,.24); }
+      #mobile-globe.is-swinging .mobile-globe-label { opacity:0;transform:translate(20px,-25px); }
+      .mobile-globe-fallback { position:absolute;left:50%;top:46%;width:min(76vw,480px);aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:#6f939b url('/GeoHybridGNN/v2.0/world-texture-3d.svg') center/cover;border:2px solid #dfe9e6;box-shadow:inset -45px -20px 65px rgba(16,37,43,.38),0 24px 70px rgba(15,31,36,.32); }
     </style>
   </head>
   <body>
     <div id="globe"></div>
     <div id="map2d"></div>
-    <div id="mobile-globe" aria-label="Animated global view">
-      <div class="mobile-sphere" id="mobile-sphere"></div>
-      <div class="mobile-sphere-label">PAKISTAN · WESTERN CHAGAI</div>
+    <div id="mobile-globe" aria-label="Interactive rotating 3D globe">
+      <div class="mobile-globe-label">PAKISTAN · WESTERN CHAGAI</div>
     </div>
     <div class="globe-hint" id="globe-hint">DRAG TO ROTATE · PINCH OR SCROLL TO ZOOM · TAP PAKISTAN</div>
     <div class="globe-controls" id="globe-controls" aria-label="3D globe controls">
@@ -1369,6 +1365,7 @@
       </div>
     </section>
     <script src="https://cdn.jsdelivr.net/npm/cesium@1.126.0/Build/Cesium/Cesium.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
       function applyResponsiveMode() {
@@ -1397,7 +1394,7 @@
           "⌖",
           "Study Area",
           "Western Chagai Belt",
-          "Move from the globe into the 30 m analysis grid covering the western Chagai porphyry copper belt.",
+          "Explore the 30 m analysis grid covering the western Chagai porphyry copper belt.",
         ],
         [
           "evidence",
@@ -1431,11 +1428,191 @@
       let viewer,
         spin = true;
       const mobileGlobe = document.body.classList.contains("mobile-ui");
-      if (mobileGlobe) {
-        scenes[0][2] = "Global Map";
-        scenes[0][3] = "International setting";
-        scenes[0][4] = "Explore country boundaries and locate Pakistan within the global metallogenic context.";
+      let mobileScene,
+        mobileCamera,
+        mobileRenderer,
+        mobileEarth,
+        mobileAtmosphere,
+        mobileMotion,
+        mobileFitDistance = 9,
+        mobileBaseRotation = 3.6;
+      const pakistanRotation = 3.6;
+      function smoothStep(t) {
+        return t * t * (3 - 2 * t);
       }
+      function resizeMobileGlobe() {
+        if (!mobileRenderer || !mobileCamera) return;
+        const host = document.querySelector("#mobile-globe");
+        const width = Math.max(host.clientWidth, 1);
+        const height = Math.max(host.clientHeight, 1);
+        const aspect = width / height;
+        mobileRenderer.setSize(width, height, false);
+        mobileCamera.aspect = aspect;
+        mobileCamera.updateProjectionMatrix();
+        const verticalFov = THREE.MathUtils.degToRad(mobileCamera.fov);
+        const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
+        mobileFitDistance = 2.08 / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 1.06;
+        if (!mobileMotion) mobileCamera.position.z = mobileFitDistance;
+      }
+      function faceMobilePakistan() {
+        if (!mobileEarth) return;
+        mobileMotion = null;
+        mobileBaseRotation = pakistanRotation;
+        mobileEarth.rotation.set(0.03, pakistanRotation, -0.025);
+        mobileCamera.position.z = mobileFitDistance;
+        document.querySelector("#mobile-globe").classList.remove("is-swinging");
+      }
+      function animateMobileGlobe(index) {
+        if (!mobileEarth) return;
+        const direction = index % 2 ? -1 : 1;
+        mobileMotion = {
+          started: performance.now(),
+          start: mobileEarth.rotation.y,
+          away: mobileEarth.rotation.y + direction * (Math.PI * .92 + index * .08),
+          direction,
+        };
+        document.querySelector("#mobile-globe").classList.add("is-swinging");
+      }
+      function initMobile3DGlobe() {
+        if (!mobileGlobe) return;
+        const host = document.querySelector("#mobile-globe");
+        if (!window.THREE) {
+          const fallback = document.createElement("div");
+          fallback.className = "mobile-globe-fallback";
+          host.prepend(fallback);
+          return;
+        }
+        try {
+        mobileScene = new THREE.Scene();
+        mobileCamera = new THREE.PerspectiveCamera(40, 1, .1, 100);
+        mobileRenderer = new THREE.WebGLRenderer({ alpha:true, antialias:true, powerPreference:"high-performance" });
+        mobileRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+        mobileRenderer.outputColorSpace = THREE.SRGBColorSpace;
+        mobileRenderer.setClearColor(0x000000, 0);
+        host.prepend(mobileRenderer.domElement);
+        const material = new THREE.MeshPhongMaterial({
+          color:0x789aa1,
+          shininess:8,
+          specular:0x8db2b4,
+        });
+        new THREE.TextureLoader().load(
+          "/GeoHybridGNN/v2.0/world-texture-3d.svg?v=2",
+          (texture) => {
+            texture.colorSpace = THREE.SRGBColorSpace;
+            texture.anisotropy = Math.min(4, mobileRenderer.capabilities.getMaxAnisotropy());
+            material.color.set(0xffffff);
+            material.map = texture;
+            material.needsUpdate = true;
+          },
+        );
+        mobileEarth = new THREE.Mesh(new THREE.SphereGeometry(2.08, 56, 40), material);
+        mobileEarth.rotation.set(.03, pakistanRotation, -.025);
+        mobileScene.add(mobileEarth);
+        mobileAtmosphere = new THREE.Mesh(
+          new THREE.SphereGeometry(2.13, 48, 32),
+          new THREE.MeshBasicMaterial({ color:0xa7d8d5, transparent:true, opacity:.13, side:THREE.BackSide }),
+        );
+        mobileScene.add(mobileAtmosphere);
+        mobileScene.add(new THREE.HemisphereLight(0xf4f8f7, 0x263d43, 2.25));
+        const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+        keyLight.position.set(-4, 5, 7);
+        mobileScene.add(keyLight);
+        const rimLight = new THREE.DirectionalLight(0x8fd7ce, 1.25);
+        rimLight.position.set(5, -2, -4);
+        mobileScene.add(rimLight);
+        let dragging = false,
+          lastX = 0,
+          lastY = 0,
+          pinchDistance = 0;
+        host.addEventListener("pointerdown", (event) => {
+          if (event.pointerType === "touch") return;
+          dragging = true;
+          mobileMotion = null;
+          lastX = event.clientX;
+          lastY = event.clientY;
+          host.setPointerCapture?.(event.pointerId);
+        });
+        host.addEventListener("pointermove", (event) => {
+          if (!dragging || !mobileEarth) return;
+          mobileBaseRotation += (event.clientX - lastX) * .008;
+          mobileEarth.rotation.x = THREE.MathUtils.clamp(mobileEarth.rotation.x + (event.clientY - lastY) * .004, -.55, .55);
+          mobileEarth.rotation.y = mobileBaseRotation;
+          lastX = event.clientX;
+          lastY = event.clientY;
+        });
+        const stopDrag = () => dragging = false;
+        host.addEventListener("pointerup", stopDrag);
+        host.addEventListener("pointercancel", stopDrag);
+        host.addEventListener("wheel", (event) => {
+          event.preventDefault();
+          mobileCamera.position.z = THREE.MathUtils.clamp(mobileCamera.position.z + event.deltaY * .006, mobileFitDistance * .78, mobileFitDistance * 1.35);
+        }, { passive:false });
+        host.addEventListener("touchstart", (event) => {
+          mobileMotion = null;
+          if (event.touches.length === 1) {
+            lastX = event.touches[0].clientX;
+            lastY = event.touches[0].clientY;
+          } else if (event.touches.length === 2) {
+            pinchDistance = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
+          }
+        }, { passive:true });
+        host.addEventListener("touchmove", (event) => {
+          if (!mobileEarth) return;
+          event.preventDefault();
+          if (event.touches.length === 1) {
+            const touch = event.touches[0];
+            mobileBaseRotation += (touch.clientX - lastX) * .008;
+            mobileEarth.rotation.x = THREE.MathUtils.clamp(mobileEarth.rotation.x + (touch.clientY - lastY) * .004, -.55, .55);
+            mobileEarth.rotation.y = mobileBaseRotation;
+            lastX = touch.clientX;
+            lastY = touch.clientY;
+          } else if (event.touches.length === 2) {
+            const distance = Math.hypot(event.touches[0].clientX - event.touches[1].clientX, event.touches[0].clientY - event.touches[1].clientY);
+            if (pinchDistance) mobileCamera.position.z = THREE.MathUtils.clamp(mobileCamera.position.z - (distance - pinchDistance) * .018, mobileFitDistance * .78, mobileFitDistance * 1.35);
+            pinchDistance = distance;
+          }
+        }, { passive:false });
+        resizeMobileGlobe();
+        window.addEventListener("resize", resizeMobileGlobe, { passive:true });
+        const renderMobileGlobe = (now) => {
+          requestAnimationFrame(renderMobileGlobe);
+          if (!mobileEarth) return;
+          if (mobileMotion) {
+            const motionDirection = mobileMotion.direction;
+            const elapsed = (now - mobileMotion.started) / 3800;
+            if (elapsed < .42) {
+              const t = smoothStep(elapsed / .42);
+              mobileEarth.rotation.y = THREE.MathUtils.lerp(mobileMotion.start, mobileMotion.away, t);
+            } else if (elapsed < .58) {
+              mobileEarth.rotation.y = mobileMotion.away;
+            } else if (elapsed < 1) {
+              const t = smoothStep((elapsed - .58) / .42);
+              mobileEarth.rotation.y = THREE.MathUtils.lerp(mobileMotion.away, pakistanRotation, t);
+            } else {
+              mobileBaseRotation = pakistanRotation;
+              mobileEarth.rotation.y = pakistanRotation;
+              mobileMotion = null;
+              host.classList.remove("is-swinging");
+            }
+            const sweep = Math.sin(Math.min(elapsed, 1) * Math.PI);
+            mobileEarth.rotation.x = .03 + motionDirection * sweep * .11;
+            mobileEarth.rotation.z = -.025 + motionDirection * sweep * .04;
+            mobileCamera.position.z = mobileFitDistance * (1 + sweep * .09);
+          } else if (!dragging) {
+            mobileEarth.rotation.y = mobileBaseRotation + Math.sin(now * .00022) * .025;
+          }
+          mobileAtmosphere.rotation.copy(mobileEarth.rotation);
+          mobileRenderer.render(mobileScene, mobileCamera);
+        };
+        requestAnimationFrame(renderMobileGlobe);
+        } catch (error) {
+          mobileRenderer?.domElement?.remove();
+          const fallback = document.createElement("div");
+          fallback.className = "mobile-globe-fallback";
+          host.prepend(fallback);
+        }
+      }
+      initMobile3DGlobe();
       if (!mobileGlobe) {
       try {
         Cesium.buildModuleUrl.setBaseUrl(
@@ -1734,7 +1911,7 @@
         document.querySelector("#globe-hint").style.display = isGlobe ? "block" : "none";
         document.querySelector("#globe-hint").textContent = useCesium
           ? "DRAG TO ROTATE · PINCH OR SCROLL TO ZOOM · TAP PAKISTAN"
-          : "DRAG TO PAN · PINCH TO ZOOM · TAP A COUNTRY";
+          : "DRAG TO ROTATE · PINCH TO ZOOM · COUNTRY BOUNDARIES";
         document.querySelector("#coords").textContent = isGlobe
           ? "LAT / LON · Drag the 3D Earth"
           : "LAT " +
@@ -1744,8 +1921,7 @@
             "° E";
         legend.className = "legend " + key;
         if (useMobileSphere) {
-          const sphere = document.querySelector("#mobile-sphere");
-          sphere.classList.remove("swing");
+          if (!mobileMotion) faceMobilePakistan();
         } else if (!isGlobe) {
           setTimeout(() => map.invalidateSize(), 40);
           Object.values(layers).forEach(
@@ -1796,7 +1972,7 @@
         document.querySelector("#mode").textContent = tour
           ? "VIDEO TOUR · SCENE " + (i + 1) + " / " + scenes.length
           : isGlobe
-            ? viewer ? "3D globe view" : "Interactive world map"
+            ? viewer ? "3D globe view" : "Interactive 3D globe"
             : "2D scientific map";
         document.querySelector("#tour-range").value = String(i);
         timeline.style.setProperty(
@@ -1876,10 +2052,7 @@
           document.querySelector("#mobile-globe").style.display = "block";
           document.querySelector("#globe-controls").style.display = "none";
           document.querySelector("#globe-hint").style.display = "block";
-          const sphere = document.querySelector("#mobile-sphere");
-          sphere.classList.remove("swing");
-          void sphere.offsetWidth;
-          sphere.classList.add("swing");
+          animateMobileGlobe(index);
         }
         timers.push(setTimeout(() => tour && show(key), 3850));
       }
@@ -1924,7 +2097,7 @@
           "<i>▶</i><span><strong>Guided Tour</strong><small>Auto-play all six scenes</small></span>";
         document.querySelector("#tour-timeline").classList.remove("active");
         document.querySelector("#mode").textContent =
-          current === "globe" ? (viewer ? "3D globe view" : "Interactive world map") : "2D scientific map";
+          current === "globe" ? (viewer ? "3D globe view" : "Interactive 3D globe") : "2D scientific map";
       }
       document.querySelector("#tour").onclick = () => {
         if (tour) return stop();
