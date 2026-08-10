@@ -1539,10 +1539,11 @@
           zoom:1,
         };
         function resizeCanvas() {
-          const width = Math.max(host.clientWidth, 1);
-          const height = Math.max(host.clientHeight, 1);
+          const width = Math.max(Number.isFinite(host.clientWidth) ? host.clientWidth : 1, 1);
+          const height = Math.max(Number.isFinite(host.clientHeight) ? host.clientHeight : 1, 1);
           if (width < 10 || height < 10) return;
-          const ratio = Math.min(window.devicePixelRatio || 1, 1.75);
+          const safeDpr = Number.isFinite(window.devicePixelRatio) ? window.devicePixelRatio : 1;
+          const ratio = Math.max(1, Math.min(safeDpr, 1.5));
           state.width = width;
           state.height = height;
           canvas.width = Math.round(width * ratio);
@@ -1701,14 +1702,12 @@
       function initMobile3DGlobe() {
         if (!mobileGlobe) return;
         const host = document.querySelector("#mobile-globe");
-        if (window.d3) {
-          initMobileCanvasGlobe(host);
-          return;
-        }
-        if (!window.THREE) {
-          initMobileCanvasGlobe(host);
-          return;
-        }
+        // Canvas is deliberately used on mobile. It preserves rotation, drag,
+        // zoom and country boundaries without exposing iOS/WebView users to
+        // fragile WebGL context failures.
+        initMobileCanvasGlobe(host);
+        return;
+        if (!window.THREE) return;
         try {
         mobileScene = new THREE.Scene();
         mobileCamera = new THREE.PerspectiveCamera(40, 1, .1, 100);
@@ -1869,6 +1868,11 @@
           infoBox: false,
           selectionIndicator: false,
           shouldAnimate: true,
+          showRenderLoopErrors: false,
+        });
+        viewer.scene.renderError.addEventListener(() => {
+          try { viewer.useDefaultRenderLoop = false; } catch (_) {}
+          document.querySelector("#fallback").style.display = "grid";
         });
         Cesium.TileMapServiceImageryProvider.fromUrl(
           Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII"),
